@@ -1,6 +1,6 @@
 # Private foundation
 
-Status: in implementation; local simulation first. User authorized a new private repository and original policy/SDK. No public release approved.
+Status: local simulation implemented and independently verified on 2026-11-14. All five criteria passed within the fixture scope; user review is pending. User authorized a new private repository and original policy/SDK. No public release approved.
 
 ## Scope
 
@@ -27,3 +27,5 @@ packages/core/index.ts is the shared contract. policy.evaluatePolicy is pure. Le
 - U5 bounded runtime, demo, independent review and private PR
 
 Real NEAR signing, final testnet transfer and live Eve integration remain a separate unproven integration gate. Multichain funding is deferred. No npm publish, public site, or mainnet execution.
+
+Verification: `npm run check` passed type checking and 37 tests. Policy rendering and the demo passed. Two independent reviews reported no remaining blockers within this scope. See [review record](../review.md) for fixes and limits.
