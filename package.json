@@ -20,7 +20,8 @@
     "dashboard": "node apps/dashboard/server.ts",
     "demo:swarm": "node apps/dashboard/swarm-demo.ts",
     "start": "node scripts/start.mjs",
-    "demo:testnet": "node scripts/start.mjs --testnet"
+    "demo:testnet": "node scripts/start.mjs --testnet",
+    "demo:team": "node examples/shared-budget/team.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
