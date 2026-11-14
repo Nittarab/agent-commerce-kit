@@ -13,10 +13,17 @@
     "check": "npm run typecheck && npm test",
     "demo": "node examples/shared-budget/demo.ts",
     "policy:check": "node packages/policy/cli.ts policies/demo.json",
-    "prepublishOnly": "node scripts/block-publication.mjs"
+    "prepublishOnly": "node scripts/block-publication.mjs",
+    "testnet:setup": "node apps/testnet/setup.ts",
+    "testnet:run": "node apps/testnet/run.ts",
+    "guide": "node scripts/guide.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "near-api-js": "7.5.3",
+    "structured-headers": "2.1.1"
   }
 }

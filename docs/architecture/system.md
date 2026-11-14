@@ -1,6 +1,6 @@
 # Architecture and authority
 
-Status: implemented local simulation, no live payments.
+Status: architecture of the original local simulation. For the separately verified live path, see [live testnet](live-testnet.md).
 
 The model/tool runtime receives only a ControlClient, not the ledger or signer. Each client uses a host-held actor token. The separate controller maps that token to a principal. A body cannot select another principal or assert owner approval. The owner token is different and is needed for stop or compare-and-swap revision approval.
 

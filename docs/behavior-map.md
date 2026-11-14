@@ -18,6 +18,6 @@ This is a behavioral reconstruction from available skills/examples and public pr
 | Live policy updates and preserved totals | Not implemented | Refuses silent changes rather than resetting counters |
 | Double-entry accounting and currencies | Not implemented | This prototype tracks one asset/job budget, not a general financial subledger |
 | General policy language | Not implemented | Strict typed JSON and plain-English renderer instead |
-| Multi-rail live execution | Not implemented | Fixture rail and NEAR evidence boundary only |
+| Multi-rail live execution | NEAR testnet only | Live signed transfers are verified; other chains remain unimplemented |
 
 The protocol sources define independent responsibilities. Poppy operations authorize exact business terms. x402 requirements describe payment. NEAR receipts prove a specific transfer only after independent authenticity and correlation checks. Combining these records must not confuse approval, money movement, delivery or output quality.

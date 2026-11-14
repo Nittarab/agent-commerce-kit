@@ -1,0 +1,8 @@
+{
+  "title": "Real testnet transfers confirmed",
+  "detail": "Two Poppy-approved purchases completed over HTTPS with real x402 payments and FINAL NEAR testnet receipts. All 47 offline tests pass. A full restart retrieved both reports with zero new issuances and zero balance change. The extra purchase was refused: job_budget_exceeded.",
+  "transactions": [
+    "7M4gmtPsoxfxHyue5BzKM9jESKELQhwZR42WV44QUxrZ",
+    "dfBNhNuFnnmvynfVvsf3sJyWZgpAdanDWwvofpUGKRW"
+  ]
+}
