@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="dashboard-token" content="__DASHBOARD_TOKEN__">
+  <meta name="color-scheme" content="light">
+  <title>Agent Commerce · Live workspace</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Agent Commerce workspace"><span class="brand-mark" aria-hidden="true">a<span>•</span></span><span>Agent<br>Commerce</span></a>
+    <div class="workspace-label">PRIVATE WORKSPACE</div>
+    <nav aria-label="Workspace"><a class="nav-item selected" href="/" aria-current="page"><span aria-hidden="true">▦</span> Activity</a><a class="nav-item" href="/guide"><span aria-hidden="true">◎</span> How it works <span class="nav-arrow" aria-hidden="true">↗</span></a></nav>
+    <div class="sidebar-bottom"><span class="network-dot" aria-hidden="true"></span> NEAR testnet<p>Test tokens only.<br>Nothing here uses mainnet funds.</p><span class="private-label">Private review</span></div>
+  </aside>
+
+  <main>
+    <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> Live activity</div><span id="connection" class="connection"><i aria-hidden="true"></i> Connecting to local controller</span></header>
+    <section class="page-heading"><div><div class="eyebrow">SCRIPTED AGENTS · REAL TESTNET PAYMENTS</div><h1>See the work. Follow the money.</h1><p>Two agents, one budget. Watch the protocol steps and inspect what each purchase returned.</p></div><div class="run-action"><button id="run-button" class="primary" disabled><span class="play" aria-hidden="true">▶</span><span id="run-label">Run again — no new payments</span></button><span>Retrieves the existing purchases. It does not buy again.</span></div></section>
+
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+    <section id="run-banner" class="run-banner" aria-live="polite"><span class="status-icon" id="run-icon" aria-hidden="true">○</span><div><strong id="run-title">Loading your workspace</strong><p id="run-description">Reading the recorded purchases from the local ledger.</p></div><span id="run-duration" class="run-duration"></span></section>
+
+    <section class="metrics" aria-label="Shared job budget">
+      <article class="metric budget-metric"><div class="metric-label">Shared budget <span id="budget-fraction">—</span></div><div class="budget-track" role="progressbar" aria-label="Committed budget" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="settled-bar"></span><span id="held-bar"></span></div><div class="budget-legend"><span><i class="legend-paid"></i><span id="paid-label">— paid</span></span><span><i class="legend-held"></i><span id="held-label">— held</span></span><span id="remaining-label">— left</span></div></article>
+      <article class="metric"><div class="metric-label">Recorded purchases</div><div class="metric-number" id="purchase-count">—</div><div class="metric-caption" id="purchase-caption">Waiting for ledger</div></article>
+      <article class="metric"><div class="metric-label">New payments in this run</div><div class="metric-number" id="new-payments">—</div><div class="metric-caption" id="new-caption">No replay started</div></article>
+    </section>
+    <div class="units-note">Amounts are in micro-wNEAR: <b>1 micro-wNEAR = 0.000001 wrapped testnet NEAR</b>. Paid and held amounts both count against the budget.</div>
+
+    <div class="workspace-grid">
+      <section class="work-column">
+        <div class="section-title"><h2>Your agents</h2><span id="agent-mode" class="quiet-label">Recorded ledger state</span></div>
+        <div id="agent-cards" class="agent-cards"><div class="empty-card">Loading agent purchases…</div></div>
+        <section class="panel flow-panel"><div class="panel-heading"><div><h2 id="flow-heading">The purchase path</h2><p id="flow-subtitle">Select an agent to see its progress.</p></div><span class="small-tag" id="flow-tag">Recorded</span></div><div class="pipeline" id="pipeline"></div><div class="stage-explanation" id="stage-explanation">Identity, approval, payment, and delivery are separate checks.</div></section>
+        <section class="panel activity-panel"><div class="panel-heading"><div><h2>Activity as it happens</h2><p>Events reported by the running workflow.</p></div><span id="event-count" class="quiet-label">0 events</span></div><div id="activity-empty" class="activity-empty"><span aria-hidden="true">↻</span><strong>Ready when you are</strong><p>Run the existing purchases again to watch real protocol requests. The saved payments are reused.</p></div><ol id="activity-list" class="activity-list" aria-label="Workflow activity"></ol></section>
+      </section>
+
+      <aside class="detail-column">
+        <section class="panel detail-panel"><div class="panel-heading"><div><div class="eyebrow">SELECTED PURCHASE</div><h2 id="detail-title">Purchase details</h2></div><span id="detail-state" class="state-badge">—</span></div><div id="detail-empty" class="detail-empty">Choose an agent to inspect its purchase.</div><div id="detail-content" hidden><dl class="detail-list"><div><dt>Agent</dt><dd id="detail-agent"></dd></div><div><dt>Service</dt><dd>Finalized testnet block report</dd></div><div><dt>Price</dt><dd id="detail-price"></dd></div><div><dt>Payment</dt><dd id="detail-payment"></dd></div><div><dt>Result</dt><dd id="detail-delivery"></dd></div></dl><div class="result-box"><div class="result-label"><span aria-hidden="true">▤</span> What the agent received</div><p id="result-summary"></p><div id="result-facts"></div></div><a id="transaction-link" class="transaction-link" target="_blank" rel="noopener noreferrer" hidden><span>View the real NEAR transaction</span><span aria-hidden="true">↗</span></a><p id="transaction-id" class="transaction-id"></p><details class="raw-result"><summary>Inspect the returned data</summary><pre id="result-json"></pre></details></div></section>
+        <section class="policy-note"><span class="shield" aria-hidden="true">✓</span><div><h3>The owner’s rules stay in control</h3><p id="policy-note">The policy caps the total spend. The model cannot increase it or change the payment recipient.</p></div></section>
+        <section class="scope-note"><h3>What you are watching</h3><p>This is a working integration with scripted agents and a local supplier. The saved purchases used real NEAR testnet transfers. This dashboard replays the requests; it does not create new payments.</p><a href="/guide">Explore the architecture and limits <span aria-hidden="true">↗</span></a></section>
+      </aside>
+    </div>
+    <footer><span class="network-dot" aria-hidden="true"></span> Local workspace · No keys or signing payloads are sent to this page.<span id="last-updated"></span></footer>
+  </main>
+</body>
+</html>
