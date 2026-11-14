@@ -51,6 +51,14 @@ test('provider errors and echoed secrets never escape through errors or decision
  await assert.rejects(escapedEcho.next([],controller.signal));
 });
 
+test('credentials containing JSON escapes or whitespace are rejected before requests',()=>{
+ let requests=0;
+ for(const apiKey of ['fixture"secret-123','fixture\\secret-123','fixture\tsecret-123','fixture\nsecret-123','fixture secret-123','fixture-é-secret']){
+  assert.throws(()=>createChatModel({...base,apiKey,fetch:async()=>{requests++;return reply({type:'done',output:'unused'});}}),/Invalid model credential/);
+ }
+ assert.equal(requests,0);
+});
+
 test('abort stops an uncooperative fetch without exposing its reason',async()=>{
  const cancel=new AbortController();const model=createChatModel({...base,fetch:async()=>new Promise(()=>{})});
  const pending=model.next([],cancel.signal);cancel.abort(new Error(credential));await assert.rejects(pending,(error:unknown)=>error instanceof Error&&error.message==='Model request cancelled or timed out');

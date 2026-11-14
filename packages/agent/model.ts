@@ -76,7 +76,9 @@ export function createChatModel(options: ChatModelOptions): ModelAdapter {
  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname);
  if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash || !(endpoint.protocol === 'https:' || endpoint.protocol === 'http:' && loopback)) throw new Error('Model endpoint must be HTTPS or loopback HTTP without credentials, query or fragment');
  const model = checkedText(options.model, 200), secret = checkedText(options.apiKey, 8192);
- if (secret.length < 8 || /[\r\n]/.test(secret)) throw new Error('Invalid model credential');
+ // Keep the opaque header token within printable ASCII that JSON does not escape.
+ // This makes literal scans of serialized context complete for the configured key.
+ if (secret.length < 8 || !/^[\x21\x23-\x5b\x5d-\x7e]+$/.test(secret)) throw new Error('Invalid model credential');
  if (endpoint.href.includes(secret) || decodeURIComponent(endpoint.pathname).includes(secret)) throw new Error('Credential cannot appear in model endpoint');
  const task = checkedText(options.task, LIMITS.task), instructions = options.instructions === undefined ? '' : checkedText(options.instructions, LIMITS.instructions);
  if (!Array.isArray(options.toolNames) || options.toolNames.length > 32 || options.toolNames.some(name => typeof name !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/.test(name)) || new Set(options.toolNames).size !== options.toolNames.length) throw new Error('Invalid model tool allowlist');
