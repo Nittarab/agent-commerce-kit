@@ -16,6 +16,7 @@ export function planStartup(directory, testnet = false) {
   }
   const ledger = join(local, 'payer.db');
   if (!existsSync(ledger)) {
+    if (['company.db','facilitator.db'].some(file => existsSync(join(local,file)))) throw new Error('Payment records exist without the payer ledger. Restore and inspect the original records; no new job will be created.');
     return [['apps/testnet/setup.ts'], ['apps/testnet/run.ts'], dashboard];
   }
   if (!existsSync(join(local, 'accounts.json'))) {

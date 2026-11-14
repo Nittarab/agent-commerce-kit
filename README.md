@@ -24,7 +24,7 @@ The demo starts its own controller on an ephemeral loopback port in another proc
 ## Swarm lab — no credentials required
 
 ```sh
-npm run dashboard
+npm start
 ```
 
 Open http://127.0.0.1:8787/swarm and click **Start swarm**. Twelve scripted buyers request three fixture services through the actual policy engine and SQLite ledger. Three scenarios show normal trading, a tight budget, and uncertain settlement. Click an agent or event to inspect it; pause/resume and adjust tempo. All swarm payments and results are explicitly **simulated**, with no RPC, live signatures, or external calls.
@@ -35,7 +35,9 @@ To check all scenarios without a browser, run `npm run demo:swarm`. See [judging
 
 ## Live testnet and the private guide
 
-Use the commands below only for the dedicated testnet environment. `testnet:setup` creates fresh accounts through the faucet, registers them with wrap.testnet, and wraps a small amount of faucet NEAR. It stores keys in `.local/testnet/accounts.json` with mode 0600 under an ignored mode-0700 directory. Never paste those keys into chat or commit that directory.
+For the complete testnet flow on your own machine, run `npm run demo:testnet`. A fresh checkout provisions dedicated faucet-funded accounts, executes the two bounded test-token purchases, then starts the dashboard. Existing completed purchases use replay-only mode. Locks, incomplete ledgers, and missing original payment records stop startup rather than fund a replacement job. OpenSSL and network access are required. This command is opt-in; `npm start` does not perform these actions.
+
+Use the individual commands below only for the dedicated testnet environment. `testnet:setup` creates fresh accounts through the faucet, registers them with wrap.testnet, and wraps a small amount of faucet NEAR. It stores keys in `.local/testnet/accounts.json` with mode 0600 under an ignored mode-0700 directory. Never paste those keys into chat or commit that directory.
 
 ```sh
 npm run testnet:setup

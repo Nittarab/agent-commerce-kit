@@ -19,3 +19,4 @@ jobs:
       - run: npm run check
       - run: npm run policy:check
       - run: npm run demo
+      - run: npm run demo:swarm

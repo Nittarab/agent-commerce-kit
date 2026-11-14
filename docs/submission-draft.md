@@ -4,9 +4,9 @@ Nothing in this document has been published or submitted. Finalize the exact nam
 
 ## Proposed positioning
 
-**Agent Commerce Kit** — a spending control layer for agent economies.
+**Agent Commerce Kit** — the building blocks for agents to buy work from other agents.
 
-The memorable claim: **Agents can retry a task without buying it twice, and uncertainty cannot silently replenish their budget.** The swarm makes that financial behavior visible. Lead with the control problem; explain the protocols as the implementation.
+The memorable claim: **Agents can retry a task without buying it twice, and uncertainty cannot silently replenish their budget.** The peer network makes paid work visible. Lead with agents requesting and delivering services, then show the wallet, facilitator, protocols and financial guarantees underneath.
 
 Suggested primary track: AI Security & Defense (`security`). Secondary: Agent Economy (`agents`). Add AI Swarms (`swarms`) only with the explicit scripted-fixture scope below. No live model, autonomous bidding, multichain or production-custody claims.
 
@@ -37,12 +37,12 @@ Use the final verified build. Keep “simulated transactions” visible in the s
 | Time | Action on screen | Voiceover |
 |---|---|---|
 | 0–10 s | Open Swarm lab, select Service marketplace and start at fast tempo | “An agent that retries a request can accidentally pay twice. A group of agents can also exhaust one shared wallet. This is the spending boundary we built.” |
-| 10–25 s | Follow an approved request through policy to a fixture result; select its row | “Twelve scripted buyers request three services. These swarm payments are simulated, but every decision comes from our policy engine and SQLite ledger.” |
+| 10–25 s | Follow a direct buyer-to-seller request to a fixture result; select its row | “Twelve scripted buyers request three services. These swarm payments are simulated, but every decision comes from our policy engine and SQLite ledger.” |
 | 25–37 s | Filter refusals and select an unauthorized-recipient or per-purchase-limit refusal | “An agent cannot change the approved recipient or bypass its spending limit. The reason is visible, with the exact request.” |
 | 37–48 s | Filter safe retries; inspect the repeated operation | “Retry returns the same order and result. It does not issue another payment.” |
 | 48–62 s | After the run completes, start Tight shared budget; show committed budget and refusals | “All agents share one cap. Held and paid amounts both count, so concurrent work cannot pretend the same money is available twice.” |
 | 62–75 s | Start Uncertain payment after the prior run finishes; select held event | “When settlement is unknown, the money stays held and the shared signer stops. A timer is not proof that a payment failed.” |
-| 75–87 s | Open NEAR purchases, select a saved report and real transaction link | “This separate path made two real wrapped-NEAR testnet payments through Poppy approval and x402. We verify the final inner transfer receipt. Replaying retrieves the paid report without buying again.” |
+| 75–87 s | Open NEAR purchases, select a saved report and real transaction link | “This separate path made two real wrapped-NEAR testnet payments through Poppy approval and x402. The original transfers verified their final inner receipts. Replaying retrieves the paid report without buying again.” |
 | 87–90 s | End on clear result/receipt view | “A visible, testable spending boundary for agent commerce.” |
 
 If the UI cannot complete all three scenarios within the time, use two short cuts between completed runs; keep simulation labels and event details visible. Prefer a clear 90–120 second real recording over a rushed misleading cut.
