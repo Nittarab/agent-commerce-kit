@@ -56,7 +56,7 @@ function addFacts(values){const dl=html('dl');for(const [label,value]of values){
 function renderSelection(){
  if(!state)return;
  for(const [id,node]of nodeElements){node.classList.toggle('selected',(id===selectedAgent||id==='seller:'+selectedService));node.setAttribute('aria-pressed',String((id===selectedAgent||id==='seller:'+selectedService)));}
- for(const path of $('paths').querySelectorAll('[data-agent]'))path.setAttribute('stroke-opacity',(!selectedAgent&&!selectedService)||path.getAttribute('data-agent')===selectedAgent||path.getAttribute('data-service')===selectedService?'1':'.1');
+ for(const path of $('paths').querySelectorAll('[data-agent]'))path.style.strokeOpacity=(!selectedAgent&&!selectedService)?'.28':path.getAttribute('data-agent')===selectedAgent||path.getAttribute('data-service')===selectedService?'.8':'.05';
  $('detail').replaceChildren();$('clear').hidden=!selectedAgent&&!selectedService&&!selectedEvent;
  const event=state.events.find(e=>e.id===selectedEvent);
  if(event){text('detail-title',`${name(event.agent)} · ${event.stage}`);text('detail-copy',event.message);const order=state.orders.find(o=>o.id===event.orderId);addFacts([['Mode','SIMULATION'],['Observed','Tick '+event.tick],['Service',service(event.service)],['Amount',event.amount+' synthetic units'],['Order',event.orderId??'No order issued'],['Payment',order?.payment??'Not authorized'],['Delivery',order?.delivery??'No result']]);if(order?.result){$('detail').append(html('pre','',JSON.stringify(order.result,null,2)));}}
@@ -82,7 +82,7 @@ function render(data,{animate=true}={}){
  const limit=BigInt(data.budget.limit),paid=BigInt(data.budget.paid),held=BigInt(data.budget.held),left=limit-paid-held;
  text('budget-label',`${paid+held} / ${limit}`);text('paid',`${paid} paid`);text('held',`${held} held`);text('left',`${left} left`);
  $('paid-bar').style.width=Number(paid*10000n/limit)/100+'%';$('held-bar').style.width=Number(held*10000n/limit)/100+'%';
- for(const [id,node]of nodeElements){const seller=id.startsWith('seller:');const latest=data.events.findLast(e=>seller?e.service===id.slice(7):e.agent===id);const circle=node.querySelector('circle');circle.style.stroke=latest?colors[latest.stage]:'#4c6b5a';node.querySelector('.agent-status').textContent=latest?.stage.toUpperCase()??(seller?'SELLER AGENT':'BUYER AGENT');}
+ for(const [id,node]of nodeElements){const seller=id.startsWith('seller:');const latest=data.events.findLast(e=>seller?e.service===id.slice(7):e.agent===id);const circle=node.querySelector('circle');circle.style.stroke=latest?colors[latest.stage]:(seller?'#a4f3c4':'#78a7be');node.querySelector('.agent-status').textContent=latest?.stage.toUpperCase()??(seller?'SELLER AGENT':'BUYER AGENT');}
  const latest=data.events.at(-1);text('map-caption',latest?`${name(latest.agent)} · ${latest.message}`:'Start a scenario to see events from the local controller.');
  renderSelection();
 }
