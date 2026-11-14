@@ -66,3 +66,45 @@ test('SDK refuses redirect/session injection and redacts host errors',async()=>{
 test('SDK deadline rejects a noncooperating transport and never invokes issuance',async()=>{
  const f=fixture();try{f.options.timeoutMs=10;f.options.transport=async()=>new Promise(()=>{});await assert.rejects(purchaseService(f.options),CommerceError);assert.equal(f.issueCalls,0);}finally{f.close();}
 });
+
+test('timeout after issuance retains budget and exact payload without delivery or reissuance',async()=>{
+ const f=fixture();
+ try{
+  const transport=f.options.transport,deliver=f.options.deliver;
+  let deliveries=0,paidRequests=0;
+  let releaseLateResponse:((value:CommerceResponse)=>void)|undefined;
+  let submittedPayload:string|undefined,requestSignal:AbortSignal|undefined;
+  f.options.timeoutMs=100;
+  f.options.deliver=async(id,text,signal)=>{deliveries++;return deliver(id,text,signal);};
+  f.options.transport=async req=>{
+   if(!req.headers['PAYMENT-SIGNATURE'])return transport(req);
+   paidRequests++;submittedPayload=req.headers['PAYMENT-SIGNATURE'];requestSignal=req.signal;
+   // The payment transport ignores cancellation. No real signature or network call occurs.
+   return new Promise<CommerceResponse>(resolve=>{releaseLateResponse=resolve;});
+  };
+  await assert.rejects(purchaseService(f.options),e=>e instanceof CommerceError&&e.stage==='payment');
+  const issued=f.ledger.lookup('buyer',f.options.offer)!;
+  assert.equal(issued.paymentState,'issued');assert.equal(issued.deliveryState,'not_delivered');
+  assert.equal(issued.result,undefined);assert.equal(f.ledger.budget('buyer').jobCommittedAtomic,'10');
+  assert.equal(f.issueCalls,1);assert.equal(paidRequests,1);assert.equal(deliveries,0);
+  assert.equal(requestSignal?.aborted,true);
+  assert.equal(sha256(Buffer.from(submittedPayload!,'base64').toString()),issued.payloadHash);
+  assert.throws(()=>f.ledger.cancel('buyer',issued.id),/cannot be cancelled/);
+  releaseLateResponse!(f.response(200,{simulation:true,late:true}));
+  await new Promise<void>(resolve=>setImmediate(resolve));
+  assert.equal(f.issueCalls,1);assert.equal(paidRequests,1);assert.equal(deliveries,0);
+  assert.equal(f.ledger.get('buyer',issued.id).paymentState,'issued');
+  assert.equal(f.ledger.budget('buyer').jobCommittedAtomic,'10');
+
+  // An explicit host recovery uses the existing durable attempt, never a new signature.
+  f.options.timeoutMs=1000;
+  f.options.transport=async req=>{
+   if(req.headers['PAYMENT-SIGNATURE'])assert.equal(req.headers['PAYMENT-SIGNATURE'],submittedPayload);
+   return transport(req);
+  };
+  const recovered=await purchaseService(f.options);
+  assert.equal(recovered.orderId,issued.id);assert.equal(deliveries,1);
+  assert.equal(f.ledger.audit().filter(e=>JSON.parse(e.event).type==='issued').length,1);
+  assert.equal(f.ledger.budget('buyer').jobCommittedAtomic,'10');
+ }finally{f.close();}
+});
