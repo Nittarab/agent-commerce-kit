@@ -5,7 +5,7 @@ const token=document.querySelector('meta[name="dashboard-token"]').content;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const colors={request:'#78a7be',reserved:'#a4f3c4',settled:'#a4f3c4',delivered:'#a4f3c4',refused:'#fa9d91',held:'#e8c483',replay:'#b7b6f3'};
 const agentPoints=new Map(),servicePoints=new Map(),nodeElements=new Map();
-let state=null,runId=null,lastEvent=0,selectedAgent=null,selectedEvent=null,busy=false,connected=false,requestVersion=0,lastFrame=performance.now(),particles=[];
+let feedSignature='',state=null,runId=null,lastEvent=0,selectedAgent=null,selectedEvent=null,busy=false,connected=false,requestVersion=0,lastFrame=performance.now(),particles=[];
 function text(id,value){$(id).textContent=String(value);}
 function element(tag,attrs={},content){const node=document.createElementNS(NS,tag);for(const [key,value]of Object.entries(attrs))node.setAttribute(key,String(value));if(content!==undefined)node.textContent=content;return node;}
 function html(tag,className,content){const node=document.createElement(tag);if(className)node.className=className;if(content!==undefined)node.textContent=String(content);return node;}
@@ -41,6 +41,7 @@ function frame(now){
 }
 function renderFeed(){
  if(!state)return;const filter=$('filter').value;
+ const signature=[state.runId,state.events.at(-1)?.id,filter,selectedAgent,selectedEvent].join('|');if(signature===feedSignature)return;feedSignature=signature;
  const events=state.events.filter(e=>(filter==='all'||e.stage===filter)&&(!selectedAgent||e.agent===selectedAgent)).slice(-60).reverse();
  const fragment=document.createDocumentFragment();
  for(const event of events){const row=html('tr',selectedEvent===event.id?'selected':'');const tick=html('td','',String(event.tick).padStart(3,'0'));const who=html('td');const button=html('button','',`${name(event.agent)} → ${service(event.service)}`);button.setAttribute('aria-label',`Inspect ${name(event.agent)} ${event.stage} at tick ${event.tick}`);button.addEventListener('click',()=>{selectedEvent=event.id;renderSelection();});who.append(button,html('small','',event.message));const decision=html('td');decision.append(html('span','tag '+event.stage,event.stage));row.append(tick,who,decision,html('td','',event.amount));row.addEventListener('click',eventObject=>{if(eventObject.target!==button){selectedEvent=event.id;renderSelection();}});fragment.append(row);}
