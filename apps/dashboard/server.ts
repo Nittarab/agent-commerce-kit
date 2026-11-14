@@ -27,7 +27,7 @@ export function snapshot(root:string){
    return {id:row.id,principalId:row.principal,operationId:offer.operationId,amountAtomic:offer.amountAtomic,paymentState:row.payment,deliveryState:row.delivery,transactionId:row.transaction_id??undefined,result:row.result?JSON.parse(row.result):undefined,createdAt:row.created_at};
   });
   const ready=['research-report','review-report'].every(id=>orders.some(o=>o.operationId===id&&o.paymentState==='settled'&&o.deliveryState==='delivered'))&&existsSync(join(root,'.local/testnet/accounts.json'));
-  return {ready,orders,policy:{jobBudgetAtomic:policy.jobBudgetAtomic,asset:policy.asset,expiresAt:policy.expiresAt},budget:{committedAtomic:committed.toString(),settledAtomic:settled.toString(),heldAtomic:held.toString()},...(!ready?{error:'Replay is available only after both purchases have settled and their results are stored.'}:{})};
+  return {ready,orders,policy:{jobBudgetAtomic:policy.jobBudgetAtomic,asset:policy.asset,payer:policy.payer,network:policy.network,expiresAt:policy.expiresAt},budget:{committedAtomic:committed.toString(),settledAtomic:settled.toString(),heldAtomic:held.toString()},...(!ready?{error:'Replay is available only after both purchases have settled and their results are stored.'}:{})};
  }finally{db.close();}
 }
 export function safeEvent(input:unknown):Omit<Event,'id'>|undefined{
@@ -45,7 +45,7 @@ export function createDashboard(root:string,options:{launch?:()=>ChildProcess}={
  const token=randomBytes(32).toString('hex');
  const swarm=new Swarm(join(root,'.local/swarm'));
  let run:Run={id:null,status:'idle',startedAt:null,events:[]},child:ChildProcess|undefined;
- const assets=new Map([['/swarm',['apps/dashboard/public/swarm.html','text/html; charset=utf-8']],['/swarm.js',['apps/dashboard/public/swarm.js','text/javascript; charset=utf-8']],['/swarm.css',['apps/dashboard/public/swarm.css','text/css; charset=utf-8']],['/',['apps/dashboard/public/index.html','text/html; charset=utf-8']],['/app.js',['apps/dashboard/public/app.js','text/javascript; charset=utf-8']],['/style.css',['apps/dashboard/public/style.css','text/css; charset=utf-8']],['/guide',['docs/site/index.html','text/html; charset=utf-8']],['/evidence.json',['docs/site/evidence.json','application/json']]]);
+ const assets=new Map([['/swarm-live.js',['apps/dashboard/public/swarm-live.js','text/javascript; charset=utf-8']],['/swarm-live.css',['apps/dashboard/public/swarm-live.css','text/css; charset=utf-8']],['/swarm',['apps/dashboard/public/swarm.html','text/html; charset=utf-8']],['/swarm.js',['apps/dashboard/public/swarm.js','text/javascript; charset=utf-8']],['/swarm.css',['apps/dashboard/public/swarm.css','text/css; charset=utf-8']],['/',['apps/dashboard/public/index.html','text/html; charset=utf-8']],['/app.js',['apps/dashboard/public/app.js','text/javascript; charset=utf-8']],['/style.css',['apps/dashboard/public/style.css','text/css; charset=utf-8']],['/guide',['docs/site/index.html','text/html; charset=utf-8']],['/evidence.json',['docs/site/evidence.json','application/json']]]);
  function start(){
   run={id:randomBytes(8).toString('hex'),status:'running',startedAt:new Date().toISOString(),events:[]};
   try{child=options.launch?options.launch():spawn(process.execPath,['apps/testnet/run.ts','--replay-only','--events'],{cwd:root,env:{...process.env,AGENT_KIT_DASHBOARD:'1'},stdio:['ignore','pipe','pipe']});}

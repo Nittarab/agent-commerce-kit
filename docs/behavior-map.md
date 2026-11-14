@@ -4,7 +4,7 @@ This is a behavioral reconstruction from available skills/examples and public pr
 
 | Observed design principle | Our original implementation | Proof / limit |
 |---|---|---|
-| Refuse before money moves | policy evaluator plus reservation before fixture signing | Negative policy and HTTP escalation tests; live signer not present |
+| Refuse before money moves | policy evaluator plus reservation before fixture signing | Negative policy and HTTP escalation tests; live NEAR signer is implemented separately in packages/near/testnet.ts |
 | Independent control boundary | token-authenticated local controller in another process | Client cannot choose principal or owner role; no OS sandbox claim |
 | One cumulative budget across agents | SQL transaction over holds and spend | Separate-process 70 + 40 race against 100 |
 | Stable intent identity on retries | company/job-scoped operation and immutable revision hash | Duplicate/mutated/revised offer tests |

@@ -8,10 +8,10 @@ An original TypeScript prototype for agents that buy services under one enforced
 
 ## Run
 
-Use Node 24 LTS (24.12 or newer, below 25) and npm. Implementation is on `codex/live-testnet` pending review.
+Use Node 24 LTS (24.12 or newer, below 25) and npm. The reviewed foundation and live testnet integration are on `main`; the swarm review branch is `codex/swarm-view`.
 
 ```sh
-git clone --branch codex/live-testnet https://github.com/Nittarab/agent-commerce-kit.git
+git clone --branch codex/swarm-view https://github.com/Nittarab/agent-commerce-kit.git
 cd agent-commerce-kit
 npm ci --ignore-scripts
 npm run policy:check
@@ -20,6 +20,18 @@ npm run demo
 ```
 
 The demo starts its own controller on an ephemeral loopback port in another process, creates temporary fixture databases and credentials, and removes them at exit. No credentials need to be provided. Do not put real keys in the demo.
+
+## Swarm lab — no credentials required
+
+```sh
+npm run dashboard
+```
+
+Open http://127.0.0.1:8787/swarm and click **Start swarm**. Twelve scripted buyers request three fixture services through the actual policy engine and SQLite ledger. Three scenarios show normal trading, a tight budget, and uncertain settlement. Click an agent or event to inspect it; pause/resume and adjust tempo. All swarm payments and results are explicitly **simulated**, with no RPC, live signatures, or external calls.
+
+Each run has 48 requests. Normal: 30 delivered, 18 refused, 179/180 units committed. Tight budget: 12 delivered, 36 refused, exactly 60/60. Uncertain: 4 delivered, 1 pending payment, and 25 unissued reservations; 161 held plus 18 paid. The shared signer stays blocked. A new scenario creates a separate job/database and does not release previous holds. Ledgers persist under ignored `.local/swarm/`; the UI shows the current process's latest run, not historical recovery after restart.
+
+To check all scenarios without a browser, run `npm run demo:swarm`. See [judging checklist](docs/judging-readiness.md) and [private submission draft](docs/submission-draft.md).
 
 ## Live testnet and the private guide
 
@@ -106,7 +118,7 @@ Time limits cannot forcibly stop uncooperative code or undo an already submitted
 Run from the configured private checkout:
 
 ```sh
-cd /Users/nittarab/git/private/agent-commerce-kit
+cd agent-commerce-kit
 npm run dashboard
 ```
 
