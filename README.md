@@ -135,3 +135,7 @@ The project is not a complete agent platform. See [what is built and what comes 
 `npm run demo:team` runs the two-peer host-pinned commerce runtime with **simulated payments and scripted model decisions**. It exercises bounded tool calls, exact service grants, persisted purchase reuse and peer handoff. `npm run demo:team -- --model` opts into a configured external chat-completion model using host-only `COMMERCE_MODEL_ENDPOINT`, `COMMERCE_MODEL_NAME`, and `COMMERCE_MODEL_API_KEY`; it still uses simulated payments. Live inference has not been verified here.
 
 The [model adapter](docs/model-runtime.md), [commerce SDK](docs/commerce-sdk.md), and `packages/agent/team.ts` are separate reusable components. The generic SDK still requires trusted transport, authorization, signing, settlement and delivery adapters. The dashboard's live testnet driver is not yet rewired through this generic SDK. No full Poppy conversations, multichain bridging, production custody or autonomous live agent marketplace is claimed.
+
+## Submitted version
+
+The hackathon entry was accepted before the deadline with commit [`fa2fe3c`](https://github.com/Nittarab/agent-commerce-kit/commit/fa2fe3ce68ff084443a8422e53692923c1ff8fed). Post-submission improvements are developed on separate branches; the submitted code remains inspectable at that commit.
