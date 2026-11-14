@@ -21,3 +21,8 @@ NEAR outcome inspection accepts only the documented subset with an independently
 Poppy keys are scoped to one company/user pair. Model output cannot grant authority. The supplier fixture and two buyer identities demonstrate local validation only; OAuth and network interoperability remain unimplemented. The internal controller is loopback-only and uses separate actor/owner tokens. Same-OS-user filesystem isolation is not established by the demo.
 
 The audit chain is an inspection aid, not a cryptographic guarantee against a database administrator. Do not expose signed payloads or authentication tokens in agent results. A policy copy returned by the library is detached from the actual pinned policy.
+# Local visual controller
+
+`apps/dashboard/server.ts` reads a safe projection of the configured SQLite ledger and exposes a loopback UI. It launches only the fixed testnet driver in replay-only mode, gated by same-origin checks and a random page token. The driver requires existing settled, delivered purchases; its signing and settlement branches refuse replay. Structured child events describe observed steps, while ledger cards describe recorded purchases. A successful replay requires a zero-issuance, zero-balance-delta summary as well as a successful child exit.
+
+This UI cannot start new jobs, edit policy or resolve held payments. It is not an OS isolation boundary, a general wallet interface, or proof of full Poppy interoperability. See `docs/dashboard-review.md` and `docs/roadmap.md`.

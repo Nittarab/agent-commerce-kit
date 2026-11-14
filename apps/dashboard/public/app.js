@@ -8,8 +8,8 @@ const names = { researcher: 'Researcher', reviewer: 'Reviewer' };
 const roles = { researcher: 'Buys the first report', reviewer: 'Buys the second report' };
 const stageDefinitions = [
   { title: 'Poppy', subtitle: 'Identity + approval', steps: ['session', 'approval'] },
-  { title: 'Policy', subtitle: 'Budget + rules', steps: ['policy'] },
   { title: 'x402', subtitle: 'Exact price', steps: ['price'] },
+  { title: 'Policy', subtitle: 'Budget + rules', steps: ['policy'] },
   { title: 'NEAR', subtitle: 'Saved payment', steps: ['payment'] },
   { title: 'Result', subtitle: 'Report + retry', steps: ['delivery', 'retry'] }
 ];
