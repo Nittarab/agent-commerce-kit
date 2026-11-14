@@ -7,6 +7,7 @@ import { readFileSync,existsSync } from 'node:fs';
 import { join,resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { Swarm } from './swarm.ts';
 
 type Event = {id:number;at:string;type:string;principal?:string;step?:string;status?:string;message:string;transactionId?:string};
 type Run={id:string|null;status:'idle'|'running'|'succeeded'|'failed';startedAt:string|null;events:Event[];error?:string;summary?:{newIssuances:number;balanceDeltaAtomic:string}};
@@ -42,8 +43,9 @@ export function safeEvent(input:unknown):Omit<Event,'id'>|undefined{
 }
 export function createDashboard(root:string,options:{launch?:()=>ChildProcess}={}){
  const token=randomBytes(32).toString('hex');
+ const swarm=new Swarm(join(root,'.local/swarm'));
  let run:Run={id:null,status:'idle',startedAt:null,events:[]},child:ChildProcess|undefined;
- const assets=new Map([['/',['apps/dashboard/public/index.html','text/html; charset=utf-8']],['/app.js',['apps/dashboard/public/app.js','text/javascript; charset=utf-8']],['/style.css',['apps/dashboard/public/style.css','text/css; charset=utf-8']],['/guide',['docs/site/index.html','text/html; charset=utf-8']],['/evidence.json',['docs/site/evidence.json','application/json']]]);
+ const assets=new Map([['/swarm',['apps/dashboard/public/swarm.html','text/html; charset=utf-8']],['/swarm.js',['apps/dashboard/public/swarm.js','text/javascript; charset=utf-8']],['/swarm.css',['apps/dashboard/public/swarm.css','text/css; charset=utf-8']],['/',['apps/dashboard/public/index.html','text/html; charset=utf-8']],['/app.js',['apps/dashboard/public/app.js','text/javascript; charset=utf-8']],['/style.css',['apps/dashboard/public/style.css','text/css; charset=utf-8']],['/guide',['docs/site/index.html','text/html; charset=utf-8']],['/evidence.json',['docs/site/evidence.json','application/json']]]);
  function start(){
   run={id:randomBytes(8).toString('hex'),status:'running',startedAt:new Date().toISOString(),events:[]};
   try{child=options.launch?options.launch():spawn(process.execPath,['apps/testnet/run.ts','--replay-only','--events'],{cwd:root,env:{...process.env,AGENT_KIT_DASHBOARD:'1'},stdio:['ignore','pipe','pipe']});}
@@ -73,6 +75,20 @@ export function createDashboard(root:string,options:{launch?:()=>ChildProcess}={
   const origin=req.headers.origin;
   const json=(status:number,body:unknown)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(body));};
   if(!hosts.includes(req.headers.host??'')||(origin!==undefined&&!hosts.some(host=>origin==='http://'+host))||req.headers['sec-fetch-site']==='cross-site')return json(403,{error:'Open the dashboard directly on this computer.'});
+  if(req.method==='GET'&&req.url==='/api/swarm')return json(200,swarm.snapshot());
+  if(req.method==='POST'&&req.url?.startsWith('/api/swarm/')){
+   req.resume();
+   if(req.headers['x-dashboard-token']!==token||!origin)return json(403,{error:'Reload the dashboard before controlling the swarm.'});
+   try{
+    const action=req.url.slice('/api/swarm/'.length);
+    if(['start/market','start/budget','start/uncertain'].includes(action)){swarm.start(action.slice(6) as 'market'|'budget'|'uncertain');swarm.schedule();}
+    else if(action==='pause')swarm.pause();
+    else if(action==='resume')swarm.resume();
+    else if(['speed/1','speed/3','speed/6'].includes(action))swarm.setSpeed(Number(action.slice(6)));
+    else return json(404,{error:'Unknown swarm action.'});
+    return json(200,swarm.snapshot());
+   }catch{return json(409,{error:'Cannot start this scenario while a run is active. Finish or resume the current run.'});}
+  }
   if(req.method==='GET'&&req.url==='/api/state'){
    try{return json(200,{...snapshot(root),run});}catch{return json(200,{ready:false,orders:[],error:'Local payment records could not be read. They were not changed.',run});}
   }
@@ -85,12 +101,12 @@ export function createDashboard(root:string,options:{launch?:()=>ChildProcess}={
   }
   const asset=assets.get(req.url??'');if(req.method!=='GET'||!asset)return json(404,{error:'not_found'});
   try{let content=readFileSync(join(root,asset[0]),'utf8');
-   if(req.url==='/')content=content.replace('__DASHBOARD_TOKEN__',token);
+   if(req.url==='/'||req.url==='/swarm')content=content.replace('__DASHBOARD_TOKEN__',token);
    if(req.url!=='/guide')res.setHeader('content-security-policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
    res.writeHead(200,{'content-type':asset[1]});res.end(content);
   }catch{return json(404,{error:'asset_missing'});}
  });
- server.on('close',()=>{if(child)child.kill('SIGTERM');});
+ server.on('close',()=>{swarm.dispose();if(child)child.kill('SIGTERM');});
  return server;
 }
 const root=fileURLToPath(new URL('../../',import.meta.url));
