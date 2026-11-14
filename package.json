@@ -18,7 +18,9 @@
     "testnet:run": "node apps/testnet/run.ts",
     "guide": "node scripts/guide.mjs",
     "dashboard": "node apps/dashboard/server.ts",
-    "demo:swarm": "node apps/dashboard/swarm-demo.ts"
+    "demo:swarm": "node apps/dashboard/swarm-demo.ts",
+    "start": "node scripts/start.mjs",
+    "demo:testnet": "node scripts/start.mjs --testnet"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
