@@ -1,17 +1,17 @@
 # Agent Commerce Kit — private prototype
 
-An original TypeScript prototype for two agents that buy fixture services under one enforced job budget. A separate local control process holds policy, reservations and simulated signing. Poppy and x402 codecs check identity and payment terms. The NEAR adapter checks correlated settlement evidence supplied by a trusted caller.
+An original TypeScript prototype for agents that buy services under one enforced job budget. It now includes a live NEAR testnet path: local HTTPS Poppy API approval, x402 payment headers, a signed NEP-366 transfer, a distinct gas-paying relayer and final inner receipt verification. The original fixture demo remains available for offline development.
 
 **Private review only.** Nittarab must explicitly approve open-sourcing after review. No open-source license is assigned. The package has `private: true`, and its publication hook refuses publication. No public deployment or package publication is configured.
 
-**All payments and supplier responses in the demo are simulated.** No real NEAR transaction, funded wallet, facilitator or live model is called. This is a working control prototype, not a production payment service or full Poppy implementation.
+**Two real testnet purchases are verified.** See [testnet evidence](docs/testnet-evidence.json) and [live architecture](docs/architecture/live-testnet.md). The supplier is our local HTTPS implementation, not an independent third-party merchant. `npm run demo` still uses simulated payments. No live model or mainnet money is used. This is not a production payment service or full Poppy implementation.
 
 ## Run
 
-Use Node 24 LTS (24.12 or newer, below 25) and npm. Implementation is on `codex/private-foundation` pending review.
+Use Node 24 LTS (24.12 or newer, below 25) and npm. Implementation is on `codex/live-testnet` pending review.
 
 ```sh
-git clone --branch codex/private-foundation https://github.com/Nittarab/agent-commerce-kit.git
+git clone --branch codex/live-testnet https://github.com/Nittarab/agent-commerce-kit.git
 cd agent-commerce-kit
 npm ci --ignore-scripts
 npm run policy:check
@@ -21,7 +21,23 @@ npm run demo
 
 The demo starts its own controller on an ephemeral loopback port in another process, creates temporary fixture databases and credentials, and removes them at exit. No credentials need to be provided. Do not put real keys in the demo.
 
-## The proposed policy
+## Live testnet and the private guide
+
+Use the commands below only for the dedicated testnet environment. `testnet:setup` creates fresh accounts through the faucet, registers them with wrap.testnet, and wraps a small amount of faucet NEAR. It stores keys in `.local/testnet/accounts.json` with mode 0600 under an ignored mode-0700 directory. Never paste those keys into chat or commit that directory.
+
+```sh
+npm run testnet:setup
+npm run testnet:run
+npm run guide
+```
+
+Open the guide at http://127.0.0.1:8765. It explains the protocols, controls, flow, evidence and limits. It serves only local static files; it has no payment control. Stop it with Ctrl-C. The standalone source is [docs/site/index.html](docs/site/index.html).
+
+The live runner starts a loopback HTTPS supplier, verifies its explicitly pinned local certificate, completes two purchases, checks exact retrieval, then stops. It does not install a system CA or disable TLS verification. OpenSSL is required to create that local certificate. The setup and runner share an exclusive lock. After a crash, verify the recorded PID is no longer running before removing `.local/testnet/running.lock`. Do not run another wallet against these dedicated keys.
+
+Each live purchase transfers **0.000001 wrapped testnet NEAR** (1000000000000000000 atomic units). The job permits two purchases in total. Re-running uses the same operation IDs and databases; it retrieves the existing purchases rather than funding another job. Public account IDs and transaction hashes appear in the evidence, but keys and signed payloads do not. The repository and local services remain private; testnet records are public.
+
+## The proposed fixture policy
 
 `policies/demo.json` is a synthetic example, not permission to spend real funds.
 
@@ -50,11 +66,12 @@ The demonstration spends 60 units on research and 30 on review. It drops the fir
 | packages/policy | Strict config validation, deterministic decisions and English rendering |
 | packages/ledger | SQLite transactions, shared holds, revisions, immutable deliveries and audit chain |
 | packages/wallet | Simulated signer and durable simulated rail status |
-| packages/poppy | Signed-out ES256 session subset, pinned discovery, exact operation approvals |
+| packages/poppy | Signed-out ES256 sessions, pinned discovery and exact Operations v3 API approval |
 | packages/x402 | Strict v2 402 challenge parsing and exact NEAR testnet term selection |
-| packages/near | Validate a final, correlated inner transfer outcome; no network/signing implementation |
+| packages/near | Exact NEP-366 signing, testnet preflight, durable relay and correlated FINAL receipt validation |
 | packages/agent | Authenticated local client and bounded pluggable model/tool loop |
 | apps/control | Loopback bearer-authenticated simulator, owner stop and revision approval |
+| apps/testnet | Dedicated testnet provisioning, HTTPS supplier, scoped client and live runner |
 | examples/shared-budget | Runnable three-role simulation with researcher, reviewer and supplier fixture |
 
 The two workers act for one owner. Each has its own token and Poppy session. The supplier fixture is deterministic; the model adapter in this demo is scripted. Independent verification means separate checking code, not a different data provider.
@@ -76,10 +93,10 @@ Read [architecture and trust boundaries](docs/architecture/system.md), the [beha
 
 The control process is separate, but the demo does not create an OS sandbox. A hostile process with the same filesystem permissions can read or alter its databases. The hash-linked audit log detects ordinary edits when checked against a retained head; it is not tamper-proof against its administrator. Actor tokens must remain outside model context.
 
-The NEAR module assumes trusted RPC and already-verified decoded transfer context. It does not fetch RPC, decode and verify actual NEP-366 signatures, sponsor gas, broadcast, or operate a facilitator. A live adapter must prove all of those steps, use durable transaction lookup, register token storage where required, and correlate the exact inner receipt. Fake evidence must never enter that trusted adapter boundary.
+The live adapter uses the official NEAR SDK for domain-separated Borsh serialization and ed25519 signatures. It checks exact transfer terms, access keys, nonce, height, token balance and recipient registration against a pinned testnet RPC. The facilitator persists one signed outer transaction before sending it and inspects the correlated final token-transfer receipt. It trusts the configured RPC and wrap.testnet contract; it is not a light client. Other key curves and tokens are refused.
 
-The Poppy subset uses pinned fixture identities. OAuth, PS384 delegations, browser join, remote discovery, stateful conversations and full conformance are not implemented. The demo validates Poppy fixtures locally; its internal controller uses HTTP on loopback and is not a Poppy server. x402 payment signing and HTTP resource settlement are unimplemented. The bounded runtime accepts a model adapter; no Eve or live-model adapter is connected yet.
+Poppy supports a pinned signed-out API profile with Operations v3 over local HTTPS. OAuth, PS384, browser join, general conversations and third-party interoperability certification are not implemented. x402 v2 exact NEAR transfers work in the demonstrated flow; this is our own embedded facilitator, not a public service. The live driver is a trusted deterministic harness with no model connected. Buyer, supplier and facilitator run in one process for this integration, with separate durable records. The separate fixture controller is not yet a production live-wallet boundary.
 
-Time limits abort waiting and pass a cancellation signal. They cannot forcibly stop uncooperative arbitrary code or undo a payment already submitted. Stop prevents new issuance, not settlement of an existing signed attempt. Unknown transfers remain held until an authoritative adapter resolves them. Live policy migration, receipt obligations, recurring time-window budgets and a general policy language are not implemented.
+Unknown transfers remain held. A final failed transfer also remains held because a complete no-further-execution proof and operator resolution flow are not implemented. A crash after payer issuance but before the first supplier payment binding, followed by operation expiry, can prevent automatic recovery; the hold remains, and the runner must not issue a replacement. Bound attempts and paid deliveries can replay after expiry. Live policy migration, general policy syntax, receipt obligations and recurring budgets remain unimplemented.
 
-Multichain swaps, bridges, production custody and deployment are outside this prototype. No source from another policy engine or private investor material is included. Public standards and the owner's prior design patterns informed this original code. See [sources](docs/sources.md).
+Time limits cannot forcibly stop uncooperative code or undo an already submitted payment. Multichain swaps, bridges, production custody and deployment remain outside scope. No reference-product source or private investor material is included. See [sources](docs/sources.md).

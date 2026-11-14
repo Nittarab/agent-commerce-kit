@@ -26,6 +26,6 @@ packages/core/index.ts is the shared contract. policy.evaluatePolicy is pure. Le
 - U4 NEAR evidence adapter and isolated fixture signer
 - U5 bounded runtime, demo, independent review and private PR
 
-Real NEAR signing, final testnet transfer and live Eve integration remain a separate unproven integration gate. Multichain funding is deferred. No npm publish, public site, or mainnet execution.
+The original fixture milestone did not prove real NEAR signing or settlement. The later [live testnet milestone](live-testnet.md) now records that proof. Live Eve integration remains unimplemented. Multichain funding is deferred. No npm publish, public site, or mainnet execution.
 
 Verification: `npm run check` passed type checking and 37 tests. Policy rendering and the demo passed. Two independent reviews reported no remaining blockers within this scope. See [review record](../review.md) for fixes and limits.

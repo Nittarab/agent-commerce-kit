@@ -69,6 +69,15 @@ export class Ledger {
   }
   budget(principal: string): Usage { return this.usage(principal); }
   get(principal: string, id: string): Order { return this.view(this.owned(principal,id)); }
+  /** Read-only exact operation lookup. Supplier verification must never create a reservation. */
+  lookup(principal: string, offer: Offer): Order | undefined {
+    const key=canonical([offer.jobId,offer.supplierId,offer.operationId]);
+    const head=this.db.prepare('SELECT order_id FROM operation_heads WHERE key=?').get(key) as {order_id:string}|undefined;
+    if(!head)return undefined;
+    const row=this.owned(principal,head.order_id);
+    if(row.fingerprint!==fingerprint(offer))throw new Error('Operation terms mismatch');
+    return this.view(row);
+  }
   private decision(code: string, explanation: string, allowed=false): Decision { return {allowed,code,explanation,policyVersion:this.policy.version}; }
   authorize(principal: string, offer: Offer, now = new Date(), ownerApproval?: OwnerRevisionApproval): Authorization {
     return this.tx(() => {

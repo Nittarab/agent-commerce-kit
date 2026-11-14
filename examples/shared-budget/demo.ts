@@ -48,7 +48,7 @@ try {
  console.log('Extra 20-unit request: REFUSED ('+refused.decision?.code+').');
  const budget=await researcher.budget();console.log('Shared committed budget: '+budget.jobCommittedAtomic+' / 100.');
  console.log('Two buying agents, one fixture supplier. Same provider; no independent-provider claim.');
- console.log('PASS — payment controls and recovery simulated. Live x402/NEAR settlement remains unimplemented.');
+ console.log('PASS — payment controls and recovery simulated. This fixture run does not verify live settlement; use testnet:run for the separate live path.');
 } finally {
  if(child.exitCode===null){child.kill('SIGTERM');await Promise.race([once(child,'exit'),new Promise<void>(resolve=>{const timer=setTimeout(()=>{child.kill('SIGKILL');resolve();},3000);timer.unref();})]);}
  rmSync(dir,{recursive:true,force:true});

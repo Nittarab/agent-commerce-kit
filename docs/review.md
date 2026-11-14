@@ -1,6 +1,6 @@
 # Private foundation review
 
-Date: 2026-11-14. Scope: original local simulation. No real funds, signing keys, live supplier or facilitator was used.
+Date: 2026-11-14. Scope: original local simulation. The later live milestone is recorded separately in [live review](live-review.md). No real funds, signing keys, live supplier or facilitator was used.
 
 Independent financial-control and protocol reviewers checked the ledger, controller, protocol boundaries and recovery paths. A separate verifier ran all five acceptance criteria. No blockers remained in the reviewed fixture scope.
 
