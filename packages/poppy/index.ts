@@ -1,4 +1,4 @@
-import { createHash, createPublicKey, randomBytes, sign, verify } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, randomBytes, sign, verify } from 'node:crypto';
 import type { JsonWebKey, KeyObject } from 'node:crypto';
 import { canonical, fingerprint, timestamp } from '../core/index.ts';
 import type { Offer } from '../core/index.ts';
@@ -7,6 +7,7 @@ type ObjectValue = Record<string, unknown>;
 type PublicKey = JsonWebKey & { kid: string };
 type Request = { url: string; method: string };
 type Session = { iss: string; aud: string; sid: string; sub: string };
+type SignerIdentity = Omit<Session, 'sid'>;
 type RequestContext = Session & { request: Request; approvedRequests: readonly Request[]; now: number };
 type Operation = { operation_id: string; revision: string; terms: ObjectValue; expires_at: string };
 
@@ -134,7 +135,7 @@ function checkDelegationTime(iat: number, exp: number, now: number) {
   if (iat > now || exp <= now || exp - iat > 86_400) throw new Error('Invalid delegation lifetime');
 }
 
-export function signDelegation(issuer: string, signingKid: string, issuerKey: KeyObject,
+function signDelegation(issuer: string, signingKid: string, issuerKey: KeyObject,
   delegatedPublicKey: KeyObject, now: number, expires: number): string {
   https(issuer);
   id(signingKid);
@@ -145,6 +146,10 @@ export function signDelegation(issuer: string, signingKid: string, issuerKey: Ke
   }, issuerKey);
 }
 
+function signedOutAudience(audience: string) {
+  if (https(audience + '/').origin !== audience) throw new Error('Expected signed-out company audience');
+}
+
 function requestClaims(context: RequestContext) {
   const { request } = context;
   const url = https(request.url);
@@ -153,7 +158,7 @@ function requestClaims(context: RequestContext) {
     throw new Error('Request destination or method is not approved');
   }
   https(context.iss);
-  if (https(context.aud + '/').origin !== context.aud) throw new Error('Expected signed-out company audience');
+  signedOutAudience(context.aud);
   url.search = '';
   return {
     iss: context.iss, aud: context.aud, sid: id(context.sid), sub: id(context.sub),
@@ -177,16 +182,29 @@ function verifyDelegation(token: string, issuer: string, keys: readonly PublicKe
   return { jwk: publicJwk(object(cnf).jwk), issued };
 }
 
-export function signSession(context: RequestContext, delegation: string, delegatedPrivateKey: KeyObject,
-  issuerKeys: readonly PublicKey[]): string {
-  const claims = requestClaims(context);
-  const now = seconds(context.now);
-  const { jwk } = verifyDelegation(delegation, claims.iss, issuerKeys, now);
-  const signer = createPublicKey(p256(delegatedPrivateKey, 'private')).export({ format: 'jwk' });
-  const kid = thumbprint(jwk);
-  if (thumbprint(signer) !== kid) throw new Error('Delegation does not name the signing key');
-  return signJwt({ alg: 'ES256', typ: 'poppy-session+jwt', kid, poppy_dlg: delegation },
-    { ...claims, iat: now, jti: jti() }, delegatedPrivateKey);
+export function createSessionSigner(identity: SignerIdentity, issuer: {
+  kid: string; privateKey: KeyObject;
+}, issuedAt: number, expiresAt: number) {
+  const { iss, aud, sub } = identity;
+  https(iss);
+  signedOutAudience(aud);
+  id(sub);
+  const delegated = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const delegation = signDelegation(iss, issuer.kid, issuer.privateKey, delegated.publicKey, issuedAt, expiresAt);
+  const kid = thumbprint(delegated.publicKey.export({ format: 'jwk' }));
+
+  return {
+    signSession(context: RequestContext): string {
+      const claims = requestClaims(context);
+      if (claims.iss !== iss || claims.aud !== aud || claims.sub !== sub) {
+        throw new Error('Signer is scoped to one issuer, company, and user');
+      }
+      const now = seconds(context.now);
+      checkDelegationTime(issuedAt, expiresAt, now);
+      return signJwt({ alg: 'ES256', typ: 'poppy-session+jwt', kid, poppy_dlg: delegation },
+        { ...claims, iat: now, jti: jti() }, delegated.privateKey);
+    },
+  };
 }
 
 export function verifySession(token: string, context: RequestContext, issuerKeys: readonly PublicKey[]) {
@@ -206,10 +224,23 @@ export function verifySession(token: string, context: RequestContext, issuerKeys
   return { ...expected, iat, jti: id(session.claims.jti) };
 }
 
+function operationExpiry(value: unknown) {
+  const match = typeof value === 'string'
+    ? /^(\d{4}-\d\d-\d\d)[Tt](\d\d:\d\d:\d\d)(?:\.(\d+))?([Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value)
+    : null;
+  if (!match || match[0] !== value) throw new Error('Expected RFC 3339 operation expiry');
+  const [, date, time, fraction = '', offset] = match;
+  const millis = timestamp(date + 'T' + time + '.' + fraction.slice(0, 3).padEnd(3, '0') + 'Z');
+  const offsetMinutes = offset.toUpperCase() === 'Z'
+    ? 0
+    : (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4))) * (offset[0] === '+' ? 1 : -1);
+  return { milliseconds: millis - offsetMinutes * 60_000, subMillisecond: /[1-9]/.test(fraction.slice(3)) };
+}
+
 export function decodeOperation(input: unknown): Operation {
   const value = object(input);
   const expires = value.expires_at;
-  timestamp(expires);
+  operationExpiry(expires);
   return {
     operation_id: id(value.operation_id),
     revision: id(value.revision),
@@ -220,18 +251,19 @@ export function decodeOperation(input: unknown): Operation {
 
 export function operationFingerprint(operation: Operation, offer: Offer): string {
   const terms = decodeOperation(operation);
+  const expiry = operationExpiry(terms.expires_at);
   if (terms.operation_id !== offer.operationId || terms.revision !== offer.revision ||
-      terms.expires_at !== offer.expiresAt) throw new Error('Operation and offer revision do not match');
+      expiry.subMillisecond || expiry.milliseconds !== timestamp(offer.expiresAt)) throw new Error('Operation and offer revision do not match');
   return fingerprint({ operation: terms, offer });
 }
 
 export function createApprovalHeader(operation: Operation, offer: Offer, approval: {
   fingerprint: string; approver: 'user' | 'agent'; reference: string; approvedAt: number;
 }, state: 'initial' | 'owner_required', now: number): string {
-  const expires = timestamp(operation.expires_at);
+  const expires = operationExpiry(operation.expires_at);
   const approvedAt = seconds(approval.approvedAt);
   const current = seconds(now);
-  if (current >= expires / 1000 || approvedAt > current ||
+  if (current * 1000 >= expires.milliseconds || approvedAt > current ||
       (approval.approver !== 'user' && approval.approver !== 'agent') ||
       (state !== 'initial' && (state !== 'owner_required' || approval.approver !== 'user')) ||
       approval.fingerprint !== operationFingerprint(operation, offer)) {

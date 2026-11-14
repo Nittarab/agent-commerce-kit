@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { test } from 'node:test';
 import type { Offer } from '../packages/core/index.ts';
 import {
   classifyApprovalResponse, createApprovalHeader, decodeOperation, operationFingerprint,
-  signDelegation, signSession, validateDiscovery, verifySession,
+  createSessionSigner, validateDiscovery, verifySession,
 } from '../packages/poppy/index.ts';
 import { decodePaymentRequired, selectExactRequirement } from '../packages/x402/index.ts';
 
@@ -53,13 +53,15 @@ test('Poppy verifies fresh per-request ES256 sessions using pinned issuer and de
   const issuerKey = { ...issuer.publicKey.export({ format: 'jwk' }), kid };
   const issuerKeys = [issuerKey];
 
-  const delegation = signDelegation(context.iss, kid, issuer.privateKey, delegated.publicKey, now, now + 120);
-  const token = signSession(context, delegation, delegated.privateKey, issuerKeys);
+  const identity = { iss: context.iss, aud: context.aud, sub: context.sub };
+  const issuerCredential = { kid, privateKey: issuer.privateKey };
+  const signer = createSessionSigner(identity, issuerCredential, now, now + 120);
+  const token = signer.signSession(context);
   const claims = verifySession(token, context, issuerKeys);
   assert.equal(claims.htu, audience + '/research');
   assert.equal(claims.htm, 'POST');
   assert.notEqual(verifySession(
-    signSession(context, delegation, delegated.privateKey, issuerKeys), context, issuerKeys,
+    signer.signSession(context), context, issuerKeys,
   ).jti, claims.jti);
 
   for (const mutation of [
@@ -74,15 +76,31 @@ test('Poppy verifies fresh per-request ES256 sessions using pinned issuer and de
   assert.throws(() => verifySession(token, context, []));
   assert.throws(() => verifySession(token, context, [issuerKey, issuerKey]));
   assert.throws(() => verifySession(token, context, [{ ...stranger.publicKey.export({ format: 'jwk' }), kid }]));
-  assert.throws(() => signSession(context, delegation, stranger.privateKey, issuerKeys));
-  assert.throws(() => signDelegation(context.iss, kid, issuer.privateKey, delegated.publicKey, now, now + 86_401));
+  assert.throws(() => signer.signSession({ ...context, sub: 'sim_reviewer' }), /Signer is scoped/);
+  assert.throws(() => signer.signSession({ ...context, aud: 'https://other.example' }), /Signer is scoped/);
+  assert.throws(() => signer.signSession({ ...context, iss: 'https://other.example/client.json' }), /Signer is scoped/);
+  identity.sub = 'sim_reviewer';
+  assert.throws(() => signer.signSession({ ...context, sub: identity.sub }), /Signer is scoped/);
+  assert.throws(() => signer.signSession({ ...context, now: now + 120 }), /Invalid delegation lifetime/);
+  assert.throws(() => createSessionSigner(identity, issuerCredential, now, now + 86_401));
 
   const [header, payload, signature] = token.split('.');
-  const protectedHeader = JSON.parse(Buffer.from(header, 'base64url').toString());
   const wireClaims = JSON.parse(Buffer.from(payload, 'base64url').toString());
   assert.throws(() => verifySession(header + '.' + payload + '.' + signature + '=', context, issuerKeys));
   assert.throws(() => verifySession(header + '.' + payload + '.' + Buffer.alloc(64).toString('base64url'), context, issuerKeys));
   const encoded = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const { x, y } = delegated.publicKey.export({ format: 'jwk' });
+  const jwk = { crv: 'P-256', kty: 'EC', x, y };
+  const delegatedKid = createHash('sha256').update(JSON.stringify(jwk)).digest('base64url');
+  const issueFixtureJwt = (jwtHeader: unknown, jwtClaims: unknown, key: typeof issuer.privateKey) => {
+    const input = encoded(jwtHeader) + '.' + encoded(jwtClaims);
+    const proof = sign('sha256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' });
+    return input + '.' + proof.toString('base64url');
+  };
+  const delegation = issueFixtureJwt({ alg: 'ES256', kid, typ: 'poppy-delegation+jwt' },
+    { iss: context.iss, cnf: { jwk }, iat: now, exp: now + 120, jti: 'sim_delegation' }, issuer.privateKey);
+  const protectedHeader = { alg: 'ES256', kid: delegatedKid, typ: 'poppy-session+jwt', poppy_dlg: delegation };
+  assert.deepEqual(verifySession(issueFixtureJwt(protectedHeader, wireClaims, delegated.privateKey), context, issuerKeys), claims);
   for (const [changedHeader, changedClaims] of [
     [{ ...protectedHeader, alg: 'none' }, wireClaims],
     [{ ...protectedHeader, typ: 'JWT' }, wireClaims],
@@ -93,9 +111,8 @@ test('Poppy verifies fresh per-request ES256 sessions using pinned issuer and de
     [protectedHeader, { ...wireClaims, jti: undefined }],
     [protectedHeader, { ...wireClaims, ath: 'unexpected_token' }],
   ]) {
-    const input = encoded(changedHeader) + '.' + encoded(changedClaims);
-    const proof = sign('sha256', Buffer.from(input), { key: delegated.privateKey, dsaEncoding: 'ieee-p1363' });
-    assert.throws(() => verifySession(input + '.' + proof.toString('base64url'), context, issuerKeys));
+    const changed = issueFixtureJwt(changedHeader, changedClaims, delegated.privateKey);
+    assert.throws(() => verifySession(changed, context, issuerKeys));
   }
 });
 
@@ -154,4 +171,23 @@ test('x402 validates a v2 402 header and selects only the exact pinned NEAR test
   assert.throws(() => selectExactRequirement({ ...challenge, accepts: [requirement, requirement] }, offer, 60));
   assert.throws(() => selectExactRequirement({ ...challenge, resource: { url: audience + '/changed' } }, offer, 60));
   assert.throws(() => selectExactRequirement(challenge, { ...offer, origin: 'https://other.example' }, 60));
+});
+
+test('Poppy preserves RFC 3339 expiry text while matching its instant to the core offer', () => {
+  const utc = '2026-10-08T19:20:00.000Z';
+  const offset = '2026-10-08T12:20:00-07:00';
+  const revisedOffer = { ...offer, expiresAt: utc };
+  const operation = {
+    operation_id: offer.operationId, revision: offer.revision, terms: { amount: '100' }, expires_at: offset,
+  };
+  assert.equal(decodeOperation(operation).expires_at, offset);
+  const fingerprint = operationFingerprint(operation, revisedOffer);
+  assert.notEqual(fingerprint, operationFingerprint({ ...operation, expires_at: utc }, revisedOffer));
+  const expirySeconds = Date.parse(utc) / 1000;
+  const approval = { fingerprint, approver: 'user' as const, reference: 'sim_approval', approvedAt: expirySeconds - 1 };
+  assert.match(createApprovalHeader(operation, revisedOffer, approval, 'initial', expirySeconds - 1), /approver="user"/);
+  assert.throws(() => createApprovalHeader(operation, revisedOffer, approval, 'initial', expirySeconds));
+  assert.throws(() => operationFingerprint({ ...operation, expires_at: '2026-10-08T12:20:00+07:00' }, revisedOffer));
+  assert.throws(() => decodeOperation({ ...operation, expires_at: '2026-10-08T12:20:00-07:60' }));
+  assert.throws(() => decodeOperation({ ...operation, expires_at: '2026-02-30T12:20:00-07:00' }));
 });
