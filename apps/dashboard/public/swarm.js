@@ -53,13 +53,34 @@ function renderFeed(){
  $('feed').replaceChildren(fragment);$('empty').hidden=events.length>0; if(!events.length)text('empty',state.events.length?'No activity matches this selection.':'No events yet. Every row will come from the running controller.');
 }
 function addFacts(values){const dl=html('dl');for(const [label,value]of values){dl.append(html('dt','',label),html('dd','',value));}$('detail').append(dl);}
+function renderReceipt(event){
+ const sameOperation=record=>Boolean(event.operationId)&&record.operationId===event.operationId&&record.agent===event.agent&&record.service===event.service;
+ const order=state.orders.find(record=>event.orderId?record.id===event.orderId:sameOperation(record));
+ const operationId=order?.operationId??event.operationId;
+ const lifecycle=state.events.filter(record=>
+  record.id===event.id||
+  (order&&record.orderId===order.id)||
+  (operationId&&record.operationId===operationId&&record.agent===event.agent&&record.service===event.service)
+ );
+ const peers=html('div','receipt-peers');
+ for(const [label,value]of [['BUYER',name(event.agent)],['SELLER',service(event.service)]]){const peer=html('div');peer.append(html('span','',label),html('strong','',value));peers.append(peer);}
+ $('detail').append(peers,html('p','receipt-mode','SIMULATED RECEIPT · no on-chain transfer'));
+ addFacts([['Amount',event.amount+' synthetic units'],['Operation',operationId??'Not recorded'],['Revision',order?.revision??'Not recorded'],['Recipient',order?.recipient??order?.payTo??'Not recorded'],['Order',order?.id??'No order issued'],['Payment',order?.payment??'Not authorized'],['Delivery',order?.delivery??'No result']]);
+ if(order?.transactionId){const payment=html('div','receipt-identity');payment.append(html('span','eyebrow','SIMULATED PAYMENT ID'),html('code','',order.transactionId));$('detail').append(payment);}
+ const timeline=html('section','receipt-lifecycle');timeline.append(html('h3','','Observed lifecycle'),html('p','','Only recorded controller events are shown. Missing steps are not inferred.'));
+ const list=html('ol');
+ for(const record of lifecycle){const item=html('li','lifecycle-event '+record.stage);const head=html('div','lifecycle-heading');head.append(html('strong','',record.stage),html('span','','tick '+record.tick));item.append(head,html('p','',record.message));list.append(item);}
+ timeline.append(list);$('detail').append(timeline);
+ if(order?.resultDigest){const digest=html('div','receipt-identity');digest.append(html('span','eyebrow','RESULT DIGEST · SHA-256'),html('code','',order.resultDigest));$('detail').append(digest);}
+ if(order?.result){const result=html('section','receipt-result');result.append(html('h3','','Returned fixture result'),html('pre','',JSON.stringify(order.result,null,2)));$('detail').append(result);}
+}
 function renderSelection(){
  if(!state)return;
  for(const [id,node]of nodeElements){node.classList.toggle('selected',(id===selectedAgent||id==='seller:'+selectedService));node.setAttribute('aria-pressed',String((id===selectedAgent||id==='seller:'+selectedService)));}
  for(const path of $('paths').querySelectorAll('[data-agent]'))path.style.strokeOpacity=(!selectedAgent&&!selectedService)?'.28':path.getAttribute('data-agent')===selectedAgent||path.getAttribute('data-service')===selectedService?'.8':'.05';
  $('detail').replaceChildren();$('clear').hidden=!selectedAgent&&!selectedService&&!selectedEvent;
  const event=state.events.find(e=>e.id===selectedEvent);
- if(event){text('detail-title',`${name(event.agent)} · ${event.stage}`);text('detail-copy',event.message);const order=state.orders.find(o=>o.id===event.orderId);addFacts([['Mode','SIMULATION'],['Observed','Tick '+event.tick],['Service',service(event.service)],['Amount',event.amount+' synthetic units'],['Order',event.orderId??'No order issued'],['Payment',order?.payment??'Not authorized'],['Delivery',order?.delivery??'No result']]);if(order?.result){$('detail').append(html('pre','',JSON.stringify(order.result,null,2)));}}
+ if(event){text('detail-title','Peer transaction receipt');text('detail-copy',event.message);renderReceipt(event);}
  else if(selectedService){const orders=state.orders.filter(o=>o.service===selectedService),events=state.events.filter(e=>e.service===selectedService);text('detail-title',service(selectedService));text('detail-copy','Seller agent providing a local fixture service. The stream is filtered to its peer transactions.');addFacts([['Role','Seller agent'],['Mode','SIMULATION'],['Requests',events.filter(e=>e.stage==='request').length],['Buyers',new Set(events.map(e=>e.agent)).size],['Delivered',orders.filter(o=>o.delivery==='delivered').length],['Latest',events.at(-1)?.message??'Waiting for a buyer']]);}
  else if(selectedAgent){text('detail-title',name(selectedAgent));const events=state.events.filter(e=>e.agent===selectedAgent),orders=state.orders.filter(o=>o.agent===selectedAgent);const committed=orders.filter(o=>['reserved','issued','pending','settled'].includes(o.payment)).reduce((n,o)=>n+BigInt(o.amount),0n);text('detail-copy','Scripted buyer · fixture services only. The transaction stream is filtered to this agent.');addFacts([['Budget',`${committed} / 40 synthetic units`],['Purchases',orders.length],['Delivered',orders.filter(o=>o.delivery==='delivered').length],['Refused',events.filter(e=>e.stage==='refused').length],['Latest',events.at(-1)?.message??'Waiting for its first request']]);}
  else{text('detail-title','Inside the swarm');text('detail-copy','Select any agent on the map or a transaction below to inspect its activity.');if(state.runId)addFacts([['Mode','SIMULATION'],['Run scope','New runs use separate ledgers; earlier holds remain in their original ledger.'],['Run',state.runId],['Issuances',state.issued+' simulated'],['Holds',state.budget.held+' synthetic units'],['Progress',`${state.attempted} / ${state.limit} requests`]]);}
