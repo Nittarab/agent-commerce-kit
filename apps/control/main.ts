@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+import { createControlServer } from './server.ts';
+import { Ledger } from '../../packages/ledger/index.ts';
+import type { SimulationFault } from './server.ts';
+import type { AddressInfo } from 'node:net';
+if(process.env.AGENT_KIT_MODE!=='simulation')throw new Error('Only explicit simulation mode is implemented');
+const config=JSON.parse(process.env.AGENT_KIT_AUTH??'null');
+if(!config||typeof config.ownerToken!=='string'||!Array.isArray(config.actors))throw new Error('Host authentication configuration required');
+const dbPath=process.argv[2], policyPath=process.argv[3];
+if(!dbPath||!policyPath)throw new Error('Usage: main.ts <db path> <policy path>');
+const ledger=new Ledger(dbPath,JSON.parse(readFileSync(policyPath,'utf8')));
+const faults=new Map<string,SimulationFault>(JSON.parse(process.env.AGENT_KIT_SIMULATION_FAULTS??'[]'));
+const server=createControlServer({ledger,tokens:new Map(config.actors),ownerToken:config.ownerToken,faults});
+server.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({simulation:true,url:'http://127.0.0.1:'+(server.address() as AddressInfo).port})));
+for(const signal of ['SIGINT','SIGTERM'] as const)process.once(signal,()=>{server.close(()=>{ledger.close();process.exit(0);});server.closeIdleConnections();});

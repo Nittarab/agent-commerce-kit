@@ -1,0 +1,29 @@
+{
+  "id": "simulated-demo",
+  "version": "1",
+  "jobId": "demo-job",
+  "network": "near:testnet",
+  "asset": "demo-token.testnet",
+  "payer": "buyer.testnet",
+  "jobBudgetAtomic": "100",
+  "expiresAt": "2030-01-01T00:00:00Z",
+  "suppliers": [
+    { "id": "fixture-supplier", "origin": "https://supplier.example", "payTo": "supplier.testnet" }
+  ],
+  "grants": [
+    {
+      "principalId": "researcher",
+      "suppliers": ["fixture-supplier"],
+      "maxPerPurchaseAtomic": "70",
+      "maxTotalAtomic": "70",
+      "expiresAt": "2030-01-01T00:00:00Z"
+    },
+    {
+      "principalId": "reviewer",
+      "suppliers": ["fixture-supplier"],
+      "maxPerPurchaseAtomic": "40",
+      "maxTotalAtomic": "40",
+      "expiresAt": "2030-01-01T00:00:00Z"
+    }
+  ]
+}
