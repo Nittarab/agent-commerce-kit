@@ -1,6 +1,6 @@
-# Private agent commerce kit
+# Agent commerce kit
 
-- This repository belongs to Nittarab and MUST remain private. Only the user can authorize making it public after their review. No npm publication, public demo deployment, releases, or open-source license assignment without that instruction.
+- This repository belongs to Nittarab. On 15 November 2026 the owner explicitly approved public GitHub visibility and the MIT license after review. That approval does not authorize npm publication, public application deployment, or tagged releases; those still require a user instruction. Keep keys and local runtime records private.
 - Write an original implementation from public standards and documented behavior. Do not copy proprietary source, investor materials, private customer data, other product branding or APIs.
 - Work on codex/ branches. Do not merge into main without user approval. Subagents use separate worktrees; never share mutable source directories.
 - Do not call the reference financial-control service. No real signing, payments, wallet funding, or live facilitator calls in fixture tests.
