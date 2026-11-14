@@ -26,3 +26,9 @@ The audit chain is an inspection aid, not a cryptographic guarantee against a da
 `apps/dashboard/server.ts` reads a safe projection of the configured SQLite ledger and exposes a loopback UI. It launches only the fixed testnet driver in replay-only mode, gated by same-origin checks and a random page token. The driver requires existing settled, delivered purchases; its signing and settlement branches refuse replay. Structured child events describe observed steps, while ledger cards describe recorded purchases. A successful replay requires a zero-issuance, zero-balance-delta summary as well as a successful child exit.
 
 This UI cannot start new jobs, edit policy or resolve held payments. It is not an OS isolation boundary, a general wallet interface, or proof of full Poppy interoperability. See `docs/dashboard-review.md` and `docs/roadmap.md`.
+
+## Swarm lab
+
+The loopback dashboard adds a bounded, cooperative scheduler for twelve scripted buyer principals and three fixture services. Each run invokes the same Ledger authorization, issuance, settlement and delivery state machine using FixtureSigner/FixtureRail only. A single coordinator interleaves requests; this is not twelve autonomous LLM processes. It shares the existing local UI token/origin checks. No public service, RPC, production wallet, or live Poppy/x402 exchange is invoked by swarm scenarios.
+
+A run caps attempts at48 and freezes on pause. Unknown fixture evidence retains its issued payment and blocks further issuance; unissued approved reservations remain held. New runs create new isolated databases under .local/swarm and retain earlier records. Process restart does not reload a scenario into the UI or reconcile holds; this is a demonstrator, not an operator recovery tool. Swarm events are in memory; durable authority and audit records stay in SQLite. Animation is derived from observed coordinator events, with historical rows shown without replaying them as new events.
