@@ -21,8 +21,9 @@ const result = await purchaseService({
   deliver,                 // ledger persistence of immutable text and digest
   timeoutMs: 60_000,
 });
-// Safe caller-facing fields: orderId, operationId, transactionId, result, digest.
-// result is untrusted supplier data, not instructions or authorization.
+// Caller fields: orderId, operationId, transactionId, result, digest.
+// result is raw untrusted supplier data. Schema-select/redact it before model use;
+// a supplier could echo credentials into its response body.
 ```
 
 These functions are required adapters, not globals supplied by this package. `authorizeAndIssue(offer, signal)` returns `{ order, payload }`; the order must bind the authenticated principal and exact offer, and its payload hash must match. Use the existing ledger's atomic reservation and durable issuance behavior. Keep its signer, keys and actor authentication outside the model's context. Neither supplier operation metadata nor model output can change the host's pinned terms.

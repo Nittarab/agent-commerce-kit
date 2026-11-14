@@ -129,3 +129,9 @@ Open http://127.0.0.1:8787. The dashboard reads the actual local ledger and show
 The server accepts only local hosts. Actions require a page token and same-origin request. Keys and signed payment bytes are not sent to the browser. If Node/RPC/locks prevent replay, the dashboard shows failure without changing payment authority. Keep the server running while using the UI; Ctrl-C stops it.
 
 The project is not a complete agent platform. See [what is built and what comes next](docs/roadmap.md) and [dashboard verification](docs/dashboard-review.md). The foundation, live testnet integration and dashboard are consolidated in private main under the owner's instruction.
+
+## Agent runtime extension
+
+`npm run demo:team` runs the two-peer host-pinned commerce runtime with **simulated payments and scripted model decisions**. It exercises bounded tool calls, exact service grants, persisted purchase reuse and peer handoff. `npm run demo:team -- --model` opts into a configured external chat-completion model using host-only `COMMERCE_MODEL_ENDPOINT`, `COMMERCE_MODEL_NAME`, and `COMMERCE_MODEL_API_KEY`; it still uses simulated payments. Live inference has not been verified here.
+
+The [model adapter](docs/model-runtime.md), [commerce SDK](docs/commerce-sdk.md), and `packages/agent/team.ts` are separate reusable components. The generic SDK still requires trusted transport, authorization, signing, settlement and delivery adapters. The dashboard's live testnet driver is not yet rewired through this generic SDK. No full Poppy conversations, multichain bridging, production custody or autonomous live agent marketplace is claimed.
