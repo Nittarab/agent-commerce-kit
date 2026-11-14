@@ -10,7 +10,7 @@ import type { Offer, Policy } from '../../packages/core/index.ts';
 export const swarmAgents=Array.from({length:12},(_,i)=>({id:'agent-'+i,name:['Scout','Analyst','Researcher','Writer','Reviewer','Planner','Indexer','Auditor','Curator','Translator','Monitor','Summarizer'][i]}));
 export const swarmServices=[{id:'search',name:'Search',origin:'https://search.example',payTo:'search.testnet'},{id:'verify',name:'Verification',origin:'https://verify.example',payTo:'verify.testnet'},{id:'compute',name:'Compute',origin:'https://compute.example',payTo:'compute.testnet'}];
 type Scenario='market'|'budget'|'uncertain';
-type Activity={id:number;tick:number;agent:string;service:string;stage:string;message:string;amount:string;orderId?:string};
+type Activity={id:number;tick:number;agent:string;service:string;stage:string;message:string;amount:string;orderId?:string;operationId:string};
 type Task={n:number;agent:string;service:string;offer:Offer;phase:number;orderId?:string};
 /** Trusted local coordinator. All payments and service results are fixtures; no network or keys. */
 export class Swarm {
@@ -34,7 +34,7 @@ export class Swarm {
  pause(){if(this.status==='running')this.status='paused';}
  setSpeed(speed:number){if(![1,3,6].includes(speed))throw new Error('Invalid speed');this.speed=speed;if(this.timer)this.schedule();}
  schedule(){if(this.timer)clearInterval(this.timer);this.timer=setInterval(()=>{try{this.step();}catch{this.status='failed';}},1000/this.speed);this.timer.unref();}
- private emit(task:Task,stage:string,message:string){this.events.push({id:this.events.length+1,tick:this.tickNumber,agent:task.agent,service:task.service,stage,message,amount:task.offer.amountAtomic,...(task.orderId?{orderId:task.orderId}:{})});}
+ private emit(task:Task,stage:string,message:string){this.events.push({id:this.events.length+1,tick:this.tickNumber,agent:task.agent,service:task.service,stage,message,operationId:task.offer.operationId,amount:task.offer.amountAtomic,...(task.orderId?{orderId:task.orderId}:{})});}
  step(){
   if(this.status!=='running'||!this.ledger||!this.rail)return;
   this.tickNumber++;
@@ -63,7 +63,7 @@ export class Swarm {
  }
  snapshot(){
   let paid=0n,held=0n;
-  const orders=[...this.orders.values()].map(o=>{const order=this.ledger!.get(o.agent,o.id);const amount=BigInt(order.offer.amountAtomic);if(order.paymentState==='settled')paid+=amount;else if(['reserved','issued','pending'].includes(order.paymentState))held+=amount;return {id:order.id,agent:order.principalId,service:order.offer.supplierId,amount:order.offer.amountAtomic,payment:order.paymentState,delivery:order.deliveryState,result:order.result?JSON.parse(order.result.text):null};});
+  const orders=[...this.orders.values()].map(o=>{const order=this.ledger!.get(o.agent,o.id);const amount=BigInt(order.offer.amountAtomic);if(order.paymentState==='settled')paid+=amount;else if(['reserved','issued','pending'].includes(order.paymentState))held+=amount;return {id:order.id,agent:order.principalId,service:order.offer.supplierId,operationId:order.offer.operationId,revision:order.offer.revision,recipient:order.offer.payTo,transactionId:order.transactionId,resultDigest:order.result?.digest,amount:order.offer.amountAtomic,payment:order.paymentState,delivery:order.deliveryState,result:order.result?JSON.parse(order.result.text):null};});
   return {simulation:true,runId:this.runId,status:this.status,scenario:this.scenario,speed:this.speed,tick:this.tickNumber,agents:swarmAgents,services:swarmServices,attempted:this.attempted,limit:48,issued:this.issued,...this.counters,budget:{limit:this.ledger?.policy.jobBudgetAtomic??'180',paid:String(paid),held:String(held),committed:String(paid+held)},events:this.events,orders};
  }
  dispose(){if(this.timer)clearInterval(this.timer);this.timer=undefined;this.rail?.close();this.ledger?.close();this.rail=undefined;this.ledger=undefined;}
