@@ -1,17 +1,17 @@
-# Agent Commerce Kit — private prototype
+# Agent Commerce Kit
 
 An original TypeScript prototype for agents that buy services under one enforced job budget. It now includes a live NEAR testnet path: local HTTPS Poppy API approval, x402 payment headers, a signed NEP-366 transfer, a distinct gas-paying relayer and final inner receipt verification. The original fixture demo remains available for offline development.
 
-**Private review only.** Nittarab must explicitly approve open-sourcing after review. No open-source license is assigned. The package has `private: true`, and its publication hook refuses publication. No public deployment or package publication is configured.
+**Open source under the MIT license**, following Nittarab’s review and explicit release approval on 15 November 2026. The npm package remains `private: true` and its publication hook refuses publication. No public application deployment or npm publication is configured.
 
 **Two real testnet purchases are verified.** See [testnet evidence](docs/testnet-evidence.json) and [live architecture](docs/architecture/live-testnet.md). The supplier is our local HTTPS implementation, not an independent third-party merchant. `npm run demo` still uses simulated payments. No live model or mainnet money is used. This is not a production payment service or full Poppy implementation.
 
 ## Run
 
-Use Node 24 LTS (24.12 or newer, below 25) and npm. The reviewed foundation and live testnet integration are on `main`; the swarm review branch is `codex/swarm-view`.
+Use Node 24 LTS (24.12 or newer, below 25) and npm. All reviewed features are on `main`.
 
 ```sh
-git clone --branch codex/swarm-view https://github.com/Nittarab/agent-commerce-kit.git
+git clone --branch main https://github.com/Nittarab/agent-commerce-kit.git
 cd agent-commerce-kit
 npm ci --ignore-scripts
 npm run policy:check
@@ -49,7 +49,7 @@ Open the guide at http://127.0.0.1:8765. It explains the protocols, controls, fl
 
 The live runner starts a loopback HTTPS supplier, verifies its explicitly pinned local certificate, completes two purchases, checks exact retrieval, then stops. It does not install a system CA or disable TLS verification. OpenSSL is required to create that local certificate. The setup and runner share an exclusive lock. After a crash, verify the recorded PID is no longer running before removing `.local/testnet/running.lock`. Do not run another wallet against these dedicated keys.
 
-Each live purchase transfers **0.000001 wrapped testnet NEAR** (1000000000000000000 atomic units). The job permits two purchases in total. Re-running uses the same operation IDs and databases; it retrieves the existing purchases rather than funding another job. Public account IDs and transaction hashes appear in the evidence, but keys and signed payloads do not. The repository and local services remain private; testnet records are public.
+Each live purchase transfers **0.000001 wrapped testnet NEAR** (1000000000000000000 atomic units). The job permits two purchases in total. Re-running uses the same operation IDs and databases; it retrieves the existing purchases rather than funding another job. Public account IDs and transaction hashes appear in the evidence, but keys and signed payloads do not. The repository and testnet records are public; local services and wallet files stay on your machine.
 
 ## The proposed fixture policy
 
@@ -128,7 +128,7 @@ Open http://127.0.0.1:8787. The dashboard reads the actual local ledger and show
 
 The server accepts only local hosts. Actions require a page token and same-origin request. Keys and signed payment bytes are not sent to the browser. If Node/RPC/locks prevent replay, the dashboard shows failure without changing payment authority. Keep the server running while using the UI; Ctrl-C stops it.
 
-The project is not a complete agent platform. See [what is built and what comes next](docs/roadmap.md) and [dashboard verification](docs/dashboard-review.md). The foundation, live testnet integration and dashboard are consolidated in private main under the owner's instruction.
+The project is not a complete agent platform. See [what is built and what comes next](docs/roadmap.md) and [dashboard verification](docs/dashboard-review.md). The foundation, live testnet integration and dashboard are consolidated in main under the owner's instruction.
 
 ## Agent runtime extension
 
