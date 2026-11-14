@@ -100,3 +100,18 @@ Poppy supports a pinned signed-out API profile with Operations v3 over local HTT
 Unknown transfers remain held. A final failed transfer also remains held because a complete no-further-execution proof and operator resolution flow are not implemented. A crash after payer issuance but before the first supplier payment binding, followed by operation expiry, can prevent automatic recovery; the hold remains, and the runner must not issue a replacement. Bound attempts and paid deliveries can replay after expiry. Live policy migration, general policy syntax, receipt obligations and recurring budgets remain unimplemented.
 
 Time limits cannot forcibly stop uncooperative code or undo an already submitted payment. Multichain swaps, bridges, production custody and deployment remain outside scope. No reference-product source or private investor material is included. See [sources](docs/sources.md).
+
+## Visual dashboard
+
+Run from the configured private checkout:
+
+```sh
+cd /Users/nittarab/git/private/agent-commerce-kit
+npm run dashboard
+```
+
+Open http://127.0.0.1:8787. The dashboard reads the actual local ledger and shows each agent, the shared budget, delivered report and original NEAR receipt. **Run again — no new payments** starts the HTTPS workflow in strict replay-only mode and displays observed runtime events. Both purchases must already be settled and delivered. The button cannot provision accounts, issue a new signature or submit a new payment. Replay does not rewrite tracked proof files.
+
+The server accepts only local hosts. Actions require a page token and same-origin request. Keys and signed payment bytes are not sent to the browser. If Node/RPC/locks prevent replay, the dashboard shows failure without changing payment authority. Keep the server running while using the UI; Ctrl-C stops it.
+
+The project is not a complete agent platform. See [what is built and what comes next](docs/roadmap.md) and [dashboard verification](docs/dashboard-review.md). The foundation, live testnet integration and dashboard are consolidated in private main under the owner's instruction.

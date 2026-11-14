@@ -16,7 +16,8 @@
     "prepublishOnly": "node scripts/block-publication.mjs",
     "testnet:setup": "node apps/testnet/setup.ts",
     "testnet:run": "node apps/testnet/run.ts",
-    "guide": "node scripts/guide.mjs"
+    "guide": "node scripts/guide.mjs",
+    "dashboard": "node apps/dashboard/server.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
