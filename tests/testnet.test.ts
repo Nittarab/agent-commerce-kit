@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { KeyPair,decodeSignedDelegate,encodeSignedDelegate,encodeDelegateAction,Signature } from 'near-api-js';
 import { createHash } from 'node:crypto';
 import { preparePayer,checkPayment,preflight,TestnetRail,assertTestnet } from '../packages/near/testnet.ts';
@@ -86,4 +87,37 @@ test('supplier exact lookup never reserves funds and rejects another principal o
   assert.throws(()=>ledger.lookup('reviewer',offer()),/another principal/);
   assert.throws(()=>ledger.lookup('researcher',offer({amountAtomic:'61'})),/terms mismatch/);
  }finally{ledger.close();}
+});
+test('stored evidence revalidates correlated FINAL receipts without any RPC or new issuance',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'stored-rail-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const {payload,order}=await issued();let calls=0;
+ const call:Rpc=async(method,params)=>{
+  calls++;
+  if(method==='tx')return {
+   final_execution_status:'FINAL',transaction:{hash:params.tx_hash,signer_id:'relay.testnet',receiver_id:order.offer.payer},
+   transaction_outcome:{id:params.tx_hash,outcome:{executor_id:'relay.testnet',status:{SuccessReceiptId:'delegate'},receipt_ids:['delegate']}},
+   receipts_outcome:[{id:'delegate',outcome:{executor_id:order.offer.payer,status:{SuccessValue:''},receipt_ids:['transfer']}},{id:'transfer',outcome:{executor_id:order.offer.asset,status:{SuccessValue:''},receipt_ids:[]}}],
+  };
+  return mock(method,params);
+ };
+ const path=join(dir,'rail.db');
+ const rail=new TestnetRail(path,'relay.testnet',relayer.toString(),key.getPublicKey().toString(),call);t.after(()=>rail.close());
+ assert.throws(()=>rail.storedEvidence(order,payload),/No persisted/);assert.equal(calls,0);
+ await rail.settle(order,payload);
+ const callsBefore=calls,evidence=rail.storedEvidence(order,payload);
+ assert.equal(evidence.final,true);assert.equal(evidence.outcome,'success');assert.equal(evidence.orderId,order.id);
+ assert.equal(evidence.payloadHash,sha256(payload));assert.equal(calls,callsBefore);
+ assert.throws(()=>rail.storedEvidence({...order,transactionId:'wrong'},payload),/transaction mismatch/);
+ assert.throws(()=>rail.storedEvidence({...order,payloadHash:'0'.repeat(64)},payload),/payload mismatch/);
+ assert.throws(()=>rail.storedEvidence({...order,offer:{...order.offer,payTo:'other.testnet'}},payload));
+ const db=new DatabaseSync(path);try{
+  const row=db.prepare('SELECT result FROM attempts').get() as {result:string};
+  const changed=JSON.parse(row.result);changed.transaction.hash='wrong';
+  db.prepare('UPDATE attempts SET result=?').run(JSON.stringify(changed));
+  assert.throws(()=>rail.storedEvidence(order,payload),/Uncorrelated/);
+  const missingInner=JSON.parse(row.result);missingInner.receipts_outcome=[];
+  db.prepare('UPDATE attempts SET result=?').run(JSON.stringify(missingInner));
+  assert.equal(rail.storedEvidence(order,payload).outcome,'unknown');
+ }finally{db.close();}
+ assert.equal(calls,callsBefore);
 });

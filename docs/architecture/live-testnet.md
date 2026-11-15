@@ -26,3 +26,13 @@ Recovery after issuance but before the first supplier binding is limited if the 
 The live script measures recipient balances before/after a run. If an attempt was unresolved at startup, it reports the balance window as ambiguous and uses exact final receipts rather than deriving execution from new issuance count. All verification observations are retained, including the earlier nonzero balance observation and later zero-delta replays.
 
 OAuth, general conversations, third-party Poppy conformance, remote merchants, live models/Eve, external wallet services, mainnet, multichain and production custody are not part of this proof.
+
+## Shared buyer SDK integration
+
+The runner delegates its operation/approval, 402 challenge, payment receipt, immutable retry and delivery sequence to `purchaseService` through `apps/testnet/buyer.ts`. Host callbacks retain principal identity, saved approvals, ledger access and signing authority. `preparePayment` runs only after atomic reservation; the actual signing closure remains inside `Ledger.issue`. Existing payloads always use a throwing replacement signer. Replay additionally requires the original settled/delivered order and saved approval before any transport call, while the supplier's replay-only settlement callback still refuses submission.
+
+The buyer now checks `TestnetRail.storedEvidence` before delivering. This read-only method revalidates the saved exact payment and correlated FINAL receipt chain; it never signs, queries RPC or broadcasts. A missing, mismatched or incomplete persisted result prevents delivery even if the supplier returned HTTP 200 with a successful payment response. It does not replace the pinned-RPC trust model or protect against a host administrator rewriting authoritative records.
+
+SDK requests pass their abort signal through the pinned HTTPS transport. Cancellation is checked after payment preparation and before signing. If a request times out after submission, the attempt stays held; aborting the buyer does not undo an already-running supplier settlement. The original process lock, persisted payload and operator recovery rules remain required.
+
+Regression tests exercise this actual host adapter with simulated ledger/rail transport: fresh purchase, expired exact replay, incomplete replay refusal, response-loss recovery, unknown or contradictory evidence, and cancellation before signing. Separate mocked-chain tests verify persisted receipt correlation and that evidence inspection performs no RPC. These tests do not establish a new live settlement observation or general Poppy conformance; historical testnet proof belongs to the earlier runner version.
