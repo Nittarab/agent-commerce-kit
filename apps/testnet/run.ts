@@ -1,19 +1,19 @@
 import { KeyPair } from 'near-api-js';
 import { generateKeyPairSync, randomUUID } from 'node:crypto';
-import { readFileSync,writeFileSync,existsSync,mkdirSync,rmSync,chmodSync } from 'node:fs';
+import { readFileSync,writeFileSync,existsSync,rmSync,chmodSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import { Ledger } from '../../packages/ledger/index.ts';
 import type { Offer,Policy } from '../../packages/core/index.ts';
-import { canonical,sha256 } from '../../packages/core/index.ts';
-import { createSessionSigner,createApprovalHeader,operationFingerprint } from '../../packages/poppy/index.ts';
-import { assertApiDiscovery,assertOperation } from '../../packages/poppy/live.ts';
-import { decodePaymentRequired,selectExactRequirement } from '../../packages/x402/index.ts';
-import { TestnetRail,assertTestnet,preparePayer,checkPayment,rpc,view,TOKEN,TIMEOUT } from '../../packages/near/testnet.ts';
+import { sha256 } from '../../packages/core/index.ts';
+import { createSessionSigner } from '../../packages/poppy/index.ts';
+import { assertApiDiscovery } from '../../packages/poppy/live.ts';
+import { TestnetRail,assertTestnet,preparePayer,checkPayment,view,TOKEN,TIMEOUT } from '../../packages/near/testnet.ts';
 import { createCompany } from './company.ts';
 import { localRequest } from './https.ts';
 import { assertReplayOrders } from './replay.ts';
+import { purchaseTestnetService } from './buyer.ts';
 
 const replayOnly=process.argv.includes('--replay-only');
 const emit=(type:string,message:string,detail:Record<string,unknown>={})=>{if(process.argv.includes('--events'))console.log('ACK_EVENT '+JSON.stringify({type,message,...detail}));};
@@ -80,31 +80,29 @@ try{
   const progress=(step:string,message:string,status='complete',detail:Record<string,unknown>={})=>emit('progress',message,{principal:sale.principal,step,status,...detail});
   progress('session','Opening an authenticated Poppy request.','started');
   const now=Math.floor(Date.now()/1000),signer=createSessionSigner({iss:issuer,aud:origin,sub:sale.principal},{kid,privateKey:keys.privateKey},now,now+3600),sid=randomUUID();
-  const headers=()=>({'Poppy-Version':'1.0','Poppy-Extensions':'"operations";v="3"','Poppy-Session':signer.signSession({iss:issuer,aud:origin,sub:sale.principal,sid,request:{url:sale.offer.url,method:'GET'},approvedRequests:sales.map(s=>({url:s.offer.url,method:'GET'})),now:Math.floor(Date.now()/1000)})});
-  const first=await http(sale.offer.url,headers());assert.equal(first.status,403);
-  progress('session','The supplier verified this agent’s signed Poppy session.');
-  const operation=assertOperation(first.json.operation,sale.offer);
-  progress('approval','The operation and its exact terms match the approved purchase.');
   const approvalPath=dir+'/'+sale.offer.operationId+'-approval.json';
-  const approval=existsSync(approvalPath)?JSON.parse(readFileSync(approvalPath,'utf8')).header:createApprovalHeader(operation,sale.offer,{fingerprint:operationFingerprint(operation,sale.offer),approver:'agent',reference:randomUUID(),approvedAt:now},'initial',now);
-  if(!existsSync(approvalPath))writeFileSync(approvalPath,JSON.stringify({header:approval}),{mode:0o600,flag:'wx'});
-  const challenge=await http(sale.offer.url,{...headers(),'Poppy-Approval':approval});
-  selectExactRequirement(decodePaymentRequired(challenge.status,challenge.headers['payment-required']),sale.offer,TIMEOUT);
-  progress('price','The x402 challenge matches the token, recipient and price: 1 micro-wNEAR.');
-  const auth=ledger.authorize(sale.principal,sale.offer);if(!auth.order)throw new Error(auth.decision.explanation);
-  progress('policy',auth.kind==='replay'?'Policy found the same recorded purchase. No new budget is reserved.':'Policy allowed and reserved this purchase.');
-  const build=(replayOnly||auth.order.payloadHash)?()=>{throw new Error('Existing issuance must be reused');}:await preparePayer(sale.offer,payerKey);
-  const issued=ledger.issue(sale.principal,auth.order.id,build);
-  progress('payment',auth.order.payloadHash?'Reusing the saved payment authorization. No new signature.':'Payment authorization stored before sending.',auth.order.payloadHash?'reused':'complete');
-  const request=()=>http(sale.offer.url,{...headers(),'Poppy-Approval':approval,'PAYMENT-SIGNATURE':Buffer.from(issued.payload).toString('base64')});
-  const paid=await request();if(paid.status!==200)throw new Error('Supplier: '+JSON.stringify(paid.json));
-  progress('delivery','The supplier returned the paid report.');
-  const receipt=JSON.parse(Buffer.from(String(paid.headers['payment-response']),'base64').toString());
-  assert.equal(receipt.success,true);assert.equal(receipt.network,'near:testnet');assert.equal(receipt.payer,sale.offer.payer);
-  const replay=await request();assert.equal(replay.status,200);assert.equal(replay.text,paid.text);assert.equal(replay.headers['payment-response'],paid.headers['payment-response']);
-  progress('retry','A second request returned the identical report and payment receipt. No second payment.','complete',{transactionId:receipt.transaction});
-  ledger.deliver(sale.principal,auth.order.id,paid.text);transactions.push(receipt.transaction);
-  console.log(sale.principal+': FINAL transfer, protected result delivered, exact retry unchanged. Transaction '+receipt.transaction);
+  const result=await purchaseTestnetService({
+   principalId:sale.principal,offer:sale.offer,ledger,replayOnly,maxTimeoutSeconds:TIMEOUT,timeoutMs:180000,progress,
+   sessionHeaders:async()=>({'Poppy-Session':signer.signSession({iss:issuer,aud:origin,sub:sale.principal,sid,request:{url:sale.offer.url,method:'GET'},approvedRequests:sales.map(s=>({url:s.offer.url,method:'GET'})),now:Math.floor(Date.now()/1000)})}),
+   transport:async({url,headers,signal})=>{
+    const response=await localRequest(origin,tls.cert,url,{...headers},signal);
+    return {status:response.status,text:response.text,headers:Object.fromEntries(Object.entries(response.headers).map(([key,value])=>[key,Array.isArray(value)?value.join(','):value]))};
+   },
+   loadApproval:()=>existsSync(approvalPath)?JSON.parse(readFileSync(approvalPath,'utf8')).header:undefined,
+   saveApproval:header=>writeFileSync(approvalPath,JSON.stringify({header}),{mode:0o600,flag:'wx'}),
+   preparePayment:async(pinnedOffer,signal)=>{
+    signal.throwIfAborted();
+    const build=await preparePayer(pinnedOffer,payerKey);
+    signal.throwIfAborted();
+    return build;
+   },
+   inspectSettlement:async(order,payload,signal)=>{
+    signal.throwIfAborted();
+    return rail.storedEvidence(order,payload);
+   },
+  });
+  transactions.push(result.transactionId);
+  console.log(sale.principal+': FINAL transfer, protected result delivered, exact retry unchanged. Transaction '+result.transactionId);
  }
  const refused=ledger.authorize('researcher',offer('over-budget'));
  assert.equal(refused.kind,'denied');
@@ -126,6 +124,6 @@ try{
  writeFileSync('docs/testnet-evidence.json',JSON.stringify(evidence,null,2));
  writeFileSync('docs/site/evidence.json',JSON.stringify({title:'Real testnet transfers confirmed',detail:'Two Poppy-approved purchases completed through HTTPS x402 payments and FINAL NEAR testnet token-transfer receipts. Exact retries returned the same result. An extra purchase was refused ('+refused.decision.code+').',transactions},null,2));
  }
- emit('complete','Replay complete. Existing reports retrieved; no new payments.',{newIssuances:afterIssuances-beforeIssuances,balanceDeltaAtomic:(finalBalance-initialBalance).toString()});
+ emit('complete',replayOnly?'Replay complete. Existing reports retrieved; no new payments.':'Purchase workflow complete. FINAL settlement and identical report retrieval verified.',{newIssuances:afterIssuances-beforeIssuances,balanceDeltaAtomic:(finalBalance-initialBalance).toString()});
  console.log('PASS: live Poppy API + x402 + NEAR testnet. Observed recipient balance delta: '+(finalBalance-initialBalance)+' atomic wrapped test-token units.');
 } finally {cleanup();rmSync(lock,{force:true});}

@@ -125,6 +125,14 @@ export class TestnetRail {
   }
   return {transaction:{hash:attempt.tx_id},final_execution_status:'NONE'};
  }
+ /** Read and revalidate persisted FINAL evidence only. Never signs, queries RPC, or submits. */
+ storedEvidence(order:Order,payload:string){
+  if(sha256(payload)!==order.payloadHash)throw new Error('Issued payload mismatch');
+  const attempt=this.stored(order.payloadHash);
+  if(!attempt||attempt.order_id!==order.id||!attempt.result)throw new Error('No persisted final settlement evidence');
+  if(order.transactionId!==undefined&&order.transactionId!==attempt.tx_id)throw new Error('Settlement transaction mismatch');
+  return this.evidence(order,payload,JSON.parse(attempt.result));
+ }
  evidence(order:Order,payload:string,result:any){
   const signed=checkPayment(JSON.parse(payload),order.offer,this.expectedPayerKey),d=signed.delegateAction;
   const attempt=this.stored(sha256(payload));
